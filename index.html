@@ -2151,62 +2151,95 @@
     function argb(c) { return 'FF' + hex(c); }
 
     function styleCell(cell, opt) {
-        const thin = { style: 'thin', color: { argb: 'FFCBD5E1' } };
+        const thin = { style: 'thin', color: { argb: 'FFDCE3EC' } };
         cell.border = { top: thin, bottom: thin, left: thin, right: thin };
-        cell.alignment = { vertical: 'middle', horizontal: opt.align || 'center', wrapText: true };
+        cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
         if (opt.fill) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: opt.fill } };
         if (opt.font) cell.font = opt.font;
+        if (opt.borderBottom) cell.border = Object.assign({}, cell.border, { bottom: opt.borderBottom });
+    }
+
+    // 그룹 블록 외곽에 굵은 테두리
+    function outlineBlock(ws, r1, c1, r2, c2) {
+        const med = { style: 'medium', color: { argb: 'FF94A3B8' } };
+        for (let r = r1; r <= r2; r++) {
+            for (let c = c1; c <= c2; c++) {
+                const cell = ws.getCell(r, c);
+                const b = Object.assign({}, cell.border);
+                if (r === r1) b.top = med;
+                if (r === r2) b.bottom = med;
+                if (c === c1) b.left = med;
+                if (c === c2) b.right = med;
+                cell.border = b;
+            }
+        }
     }
 
     // 그룹(층/공정)을 가로(오른쪽)로 나열하는 시트 생성
     // groups: [{ label, members, colorHex, lightHex }]
     function addGroupedSheet(wb, sheetName, sheetTitle, groups, tabColorHex, dupSet) {
-        const ws = wb.addWorksheet(sheetName, { properties: { tabColor: { argb: argb(tabColorHex) } } });
-        const COLS = 3, BLOCK = 4; // 3열 + 1 간격
-        const totalCols = Math.max(COLS, groups.length * BLOCK - 1);
+        const ws = wb.addWorksheet(sheetName, { properties: { tabColor: { argb: argb(tabColorHex) }, defaultRowHeight: 19 } });
+        const BLOCK = 4; // 3열 + 1 간격
+        const totalCols = Math.max(3, groups.length * BLOCK - 1);
+        const med = { style: 'medium', color: { argb: 'FF94A3B8' } };
+
+        // 상단 3행 고정 + 격자선 숨김(디자인된 표 느낌)
+        ws.views = [{ state: 'frozen', ySplit: 3, showGridLines: false }];
 
         // 컬럼 폭
         groups.forEach((grp, g) => {
             const base = g * BLOCK;
-            ws.getColumn(base + 1).width = 16; // 성함
-            ws.getColumn(base + 2).width = 14; // 쿠코드
-            ws.getColumn(base + 3).width = 8;  // 성별
-            if (g < groups.length - 1) ws.getColumn(base + 4).width = 2; // 간격
+            ws.getColumn(base + 1).width = 18; // 성함
+            ws.getColumn(base + 2).width = 16; // 쿠코드
+            ws.getColumn(base + 3).width = 9;  // 성별
+            if (g < groups.length - 1) ws.getColumn(base + 4).width = 2.5; // 간격
         });
 
-        // 1행: 시트 제목(전폭 머지)
+        // 1행: 시트 제목(전폭 머지) — 가운데, 큰 글씨, 아래 굵은선
         ws.mergeCells(1, 1, 1, totalCols);
-        styleCell(ws.getCell(1, 1), { fill: argb(tabColorHex), font: { bold: true, size: 14, color: { argb: 'FFFFFFFF' } }, align: 'left' });
+        for (let c = 1; c <= totalCols; c++) {
+            styleCell(ws.getCell(1, c), { fill: argb(tabColorHex), font: { bold: true, size: 16, color: { argb: 'FFFFFFFF' } } });
+            ws.getCell(1, c).border = { bottom: med };
+        }
         ws.getCell(1, 1).value = sheetTitle;
-        ws.getRow(1).height = 24;
-        ws.getRow(2).height = 19;
+        ws.getRow(1).height = 32;
+        ws.getRow(2).height = 24;
+        ws.getRow(3).height = 22;
 
         groups.forEach((grp, g) => {
             const base = g * BLOCK;
             const c1 = base + 1, c2 = base + 3;
-            // 2행: 그룹 제목(그룹 대표색)
+            const sorted = grp.members.slice().sort(memberSort);
+            const endRow = 3 + Math.max(1, sorted.length);
+
+            // 2행: 그룹 제목(그룹 대표색) — 가운데
             ws.mergeCells(2, c1, 2, c2);
-            styleCell(ws.getCell(2, c1), { fill: argb(grp.colorHex), font: { bold: true, size: 12, color: { argb: 'FFFFFFFF' } }, align: 'left' });
+            styleCell(ws.getCell(2, c1), { fill: argb(grp.colorHex), font: { bold: true, size: 13, color: { argb: 'FFFFFFFF' } } });
             ws.getCell(2, c1).value = `${grp.label} (${grp.members.length}명)`;
-            // 3행: 헤더
+
+            // 3행: 컬럼 헤더 — 가운데, 굵게, 아래 굵은선
             ['성함', '쿠코드', '성별'].forEach((h, i) => {
                 const cell = ws.getCell(3, c1 + i);
                 cell.value = h;
-                styleCell(cell, { fill: argb(grp.lightHex), font: { bold: true, size: 11, color: { argb: 'FF1E293B' } }, align: i === 0 ? 'left' : 'center' });
+                styleCell(cell, { fill: argb(grp.lightHex), font: { bold: true, size: 11, color: { argb: 'FF0F172A' } }, borderBottom: med });
             });
-            // 데이터
-            grp.members.slice().sort(memberSort).forEach((m, idx) => {
+
+            // 데이터 — 전부 가운데 정렬
+            sorted.forEach((m, idx) => {
                 const r = 4 + idx;
                 const ku = (m.kucode && m.kucode !== '-') ? m.kucode : '누락';
                 const bad = dupSet.has(m.kucode) || ku === '누락';
-                const fill = bad ? 'FFFECACA' : (idx % 2 === 0 ? 'FFFFFFFF' : 'FFF8FAFC');
+                const fill = bad ? 'FFFEE2E2' : (idx % 2 === 0 ? 'FFFFFFFF' : 'FFF8FAFC');
                 const font = bad ? { bold: true, color: { argb: 'FFB91C1C' } } : { color: { argb: 'FF334155' } };
                 [m.originalName || '', ku, m.gender || '-'].forEach((val, i) => {
                     const cell = ws.getCell(r, c1 + i);
                     cell.value = val;
-                    styleCell(cell, { fill, font, align: i === 0 ? 'left' : 'center' });
+                    styleCell(cell, { fill, font });
                 });
             });
+
+            // 블록 외곽 굵은 테두리
+            outlineBlock(ws, 2, c1, endRow, c2);
         });
         return ws;
     }
@@ -2233,13 +2266,9 @@
             const members = existing.filter(tab.match);
             if (members.length === 0) return;
             const info = PROCESS_INFO[tab.key] || PROCESS_INFO.DEFAULT;
-            let groups;
-            if (tab.floor) {
-                const floors = [...new Set(members.map(m => m.floor))].sort(floorCompare);
-                groups = floors.map(fl => ({ label: fl || '미지정', members: members.filter(m => m.floor === fl), colorHex: info.color, lightHex: info.lightColor }));
-            } else {
-                groups = [{ label: tab.name, members, colorHex: info.color, lightHex: info.lightColor }];
-            }
+            // 모든 공정을 층별로 그룹 → "5OB (1명)" 밑에 실제 층(4-1층 등)이 표시됨
+            const floors = [...new Set(members.map(m => m.floor))].sort(floorCompare);
+            const groups = floors.map(fl => ({ label: fl || '미지정', members: members.filter(m => m.floor === fl), colorHex: info.color, lightHex: info.lightColor }));
             addGroupedSheet(wb, sanitizeSheetName(tab.name), `${tab.name} (${members.length}명)`, groups, info.color, dupSet);
             sheetCount++;
         });
