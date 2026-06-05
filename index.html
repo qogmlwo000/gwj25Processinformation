@@ -7,8 +7,10 @@
 	<!-- Favicon -->
     <link rel="icon" href="Bennett.ico" type="image/x-icon">
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- xlsx-js-style: SheetJS 0.18.5 포크 (전역 XLSX 동일, 셀 색상/서식 지원) -->
+    <!-- xlsx-js-style: 업로드 엑셀 읽기용(SheetJS 0.18.5 포크) -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+    <!-- ExcelJS: 내보내기용(탭 색·서식·가로 배치 지원) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
     <!-- Firebase (Firestore) 실시간 연동 -->
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
@@ -276,10 +278,10 @@
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
             <div class="bg-gradient-to-r from-amber-500 to-orange-600 text-white p-6">
                 <div class="flex justify-between items-center">
-                    <h2 class="text-2xl font-bold">🔒 버튼 잠금 해제</h2>
+                    <h2 id="unlock-modal-title" class="text-2xl font-bold">🔒 버튼 잠금 해제</h2>
                     <button id="close-unlock-modal" class="text-white/80 hover:text-white text-2xl font-bold">&times;</button>
                 </div>
-                <p class="text-amber-100 mt-2">비밀번호를 입력하여 잠금을 해제하세요</p>
+                <p id="unlock-modal-desc" class="text-amber-100 mt-2">비밀번호를 입력하여 잠금을 해제하세요</p>
             </div>
             <div class="p-6">
                 <input type="password" id="unlock-password-input" placeholder="비밀번호 입력" class="w-full p-4 bg-slate-50 rounded-xl border-2 border-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent text-slate-700 font-medium text-center text-lg" maxlength="4">
@@ -307,7 +309,7 @@
                 </div>
                 <div>
                     <h1 class="text-2xl font-black gradient-text leading-tight">GWJ2 / GWJ5 공정 안내 시스템 설정</h1>
-                    <p class="text-slate-500 text-sm mt-0.5">왼쪽 메뉴에서 ①→④ 순서대로 설정하세요 · 쿠코드 기반</p>
+                    <p class="text-slate-500 text-sm mt-0.5">왼쪽 메뉴에서 ①→④ 순서대로 설정하세요 · <span id="header-date-text" class="font-semibold text-slate-600">미배정</span></p>
                 </div>
             </div>
 
@@ -527,6 +529,21 @@
 
                     <!-- ④ 시스템 -->
                     <div data-panel="system" class="settings-panel space-y-6 hidden">
+                        <div id="session-section" class="bg-gradient-to-br from-slate-50 to-gray-100 rounded-2xl p-6 border border-slate-200">
+                            <div class="flex items-center mb-4">
+                                <div class="w-9 h-9 bg-slate-600 rounded-lg flex items-center justify-center mr-3">
+                                    <span class="text-white text-lg">🗓️</span>
+                                </div>
+                                <h2 class="text-xl font-bold text-slate-700">차수 관리</h2>
+                            </div>
+                            <div class="flex items-center justify-between bg-white rounded-xl p-4 border border-slate-200 mb-3">
+                                <span class="text-sm text-slate-500">배정 기준일</span>
+                                <span id="session-date-text" class="font-bold text-slate-700">미배정</span>
+                            </div>
+                            <button type="button" id="daily-reset-button" class="w-full bg-gradient-to-r from-rose-500 to-red-600 text-white font-bold py-3 px-6 rounded-xl hover:shadow-lg transition-all duration-200">🔄 오늘 새로 시작 (초기화)</button>
+                            <p class="text-xs text-slate-400 mt-2">현재 배정·스캔·수동변경 기록을 모두 비웁니다. <b>비밀번호 입력 필요</b>(잠금 비밀번호와 동일). 연동된 모든 PC가 함께 초기화됩니다. 음성·이미지·비밀번호 설정은 유지됩니다.</p>
+                        </div>
+
                         <div id="sync-section" class="bg-gradient-to-br from-sky-50 to-blue-50 rounded-2xl p-6 border border-sky-200">
                             <div class="flex items-center mb-4">
                                 <div class="w-9 h-9 bg-sky-500 rounded-lg flex items-center justify-center mr-3">
@@ -536,6 +553,18 @@
                                 <span id="sync-status-badge" class="ml-2 px-3 py-1 bg-slate-100 text-slate-500 text-xs font-semibold rounded-full">미연결</span>
                             </div>
                             <p id="sync-info" class="text-sm text-slate-500 leading-relaxed">Firebase에 연결되면 <b>모든 PC가 자동으로 같은 데이터를 공유</b>합니다(기본 켜짐). 한 곳에서 인원 배정/수정하면 다른 PC에 실시간 반영되고, 어디서든 엑셀 다운로드가 가능합니다.</p>
+                        </div>
+
+                        <div id="keepawake-section" class="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-2xl p-6 border border-emerald-200">
+                            <div class="flex items-center mb-4">
+                                <div class="w-9 h-9 bg-emerald-500 rounded-lg flex items-center justify-center mr-3">
+                                    <span class="text-white text-lg">🖥️</span>
+                                </div>
+                                <h2 class="text-xl font-bold text-slate-700">화면 꺼짐 방지</h2>
+                                <span id="keepawake-badge" class="ml-2 px-3 py-1 bg-slate-100 text-slate-500 text-xs font-semibold rounded-full">대기</span>
+                            </div>
+                            <button type="button" id="keepawake-button" class="w-full bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold py-3 px-6 rounded-xl hover:shadow-lg transition-all duration-200 mb-3">🖥️ 화면 켜놓기 시작</button>
+                            <p class="text-xs text-slate-500 leading-relaxed">버튼을 누르면 화면 절전 방지(Wake Lock)와 보조 영상이 동작해 <b>화면보호기/절전으로 인한 잠금</b>을 막습니다.<br>※ 회사 정책이 ‘입력 없으면 무조건 잠금(비활성 한도)’ 방식이면 브라우저로는 막을 수 없습니다. 그 경우 관리자 권한 없이 쓰는 <b>PowerToys Awake</b>/Caffeine 같은 도구가 필요합니다.</p>
                         </div>
 
                         <div id="security-section" class="bg-gradient-to-br from-amber-50 to-yellow-50 rounded-2xl p-6 border border-amber-200">
@@ -620,6 +649,7 @@
                 <div id="clock-container" class="my-8">
                     <p id="current-date" class="text-4xl sm:text-5xl font-semibold text-slate-700 mb-3"></p>
                     <p id="current-time" class="text-8xl sm:text-9xl font-black bg-gradient-to-r from-yellow-400 to-amber-500 bg-clip-text text-transparent tracking-wider leading-none"></p>
+                    <p id="welcome-date-stamp" class="mt-4 text-xl sm:text-2xl font-bold text-slate-500"></p>
                 </div>
                 <img src="https://i.postimg.cc/m2qfm2fc/cfssaebeock.png" alt="공정 안내 캐릭터" class="w-64 sm:w-80 mx-auto mb-10">
                 <h2 class="text-4xl sm:text-5xl font-bold text-slate-700 mb-8">GWJ2 / GWJ5 센터에 오신 것을 환영합니다</h2>
@@ -805,6 +835,8 @@
     
     <audio id="success-sound" preload="auto"></audio>
     <audio id="alert-sound" preload="auto"></audio>
+    <!-- 화면 꺼짐/잠김 방지용 보조 영상(NoSleep 방식) -->
+    <video id="nosleep-video" muted loop playsinline webkit-playsinline style="position:fixed;left:-12px;bottom:-12px;width:2px;height:2px;opacity:0;pointer-events:none;"></video>
 
 <script>
     // --- DOM 요소 ---
@@ -931,7 +963,11 @@
     // 음성/이미지/연동 상태
     let voiceSlots = [];          // [{ src(base64), fileName, interval(분), audio(Audio), timer }]
     let audioUnlocked = false;
+    let noSleepActive = false;     // 화면 꺼짐 방지(보조 영상) 가동 여부
+    let noSleepDrawTimer = null;
     let locationImages = {};       // '센터|공정[|층]' -> base64 dataURL (코드 기본값 오버라이드)
+    let assignmentDate = '';       // 배정 기준일(YYYY-MM-DD (요일))
+    let unlockPurpose = 'process'; // 잠금 모달 용도: 'process' | 'reset'
     let firebaseApp = null;
     let firebaseDb = null;
     let syncRef = null;            // assignments 노드 ref
@@ -1099,6 +1135,18 @@
     // 잠금 비밀번호 변경
     unlockPassSave.addEventListener('click', saveUnlockPassword);
 
+    // 데일리 초기화 (비밀번호 확인 후 실행)
+    document.getElementById('daily-reset-button').addEventListener('click', () => {
+        unlockPurpose = 'reset';
+        showUnlockModal();
+    });
+
+    // 화면 꺼짐 방지 수동 시작(사용자 제스처 → 자동재생/WakeLock 확실히 가동)
+    document.getElementById('keepawake-button').addEventListener('click', () => {
+        enableKeepAwake();
+        alert('화면 꺼짐 방지를 시작했습니다.\n(화면보호기/절전 잠금을 막습니다)');
+    });
+
     // 설정 탭 전환
     settingsTabs.forEach(btn => btn.addEventListener('click', () => showSettingsTab(btn.dataset.tab)));
 
@@ -1206,6 +1254,7 @@
             wakeLockSentinel.addEventListener('release', () => {
                 wakeLockSentinel = null;
                 updateScannerStatus();
+                updateKeepAwakeStatus();
                 if (document.visibilityState === 'visible' && isScannerModeActive()) {
                     requestWakeLock();
                 }
@@ -1213,10 +1262,47 @@
         } catch (error) {
             wakeLockError = error?.name || 'wake-lock-error';
             console.warn('화면 절전 방지 요청 실패:', error);
+            // Wake Lock 거부/미지원 → 보조 영상 폴백 가동
+            startNoSleep();
         } finally {
             wakeLockRequestPending = false;
             updateScannerStatus();
+            updateKeepAwakeStatus();
         }
+    }
+
+    // --- 화면 꺼짐/잠김 방지 (Wake Lock + 보조 영상 폴백) ---
+
+    function startNoSleep() {
+        const v = document.getElementById('nosleep-video');
+        if (!v) return;
+        try {
+            if (!v.srcObject) {
+                const canvas = document.createElement('canvas');
+                canvas.width = 2; canvas.height = 2;
+                const ctx = canvas.getContext('2d');
+                let on = false;
+                noSleepDrawTimer = setInterval(() => { on = !on; ctx.fillStyle = on ? '#000001' : '#000000'; ctx.fillRect(0, 0, 2, 2); }, 1000);
+                try { v.srcObject = canvas.captureStream(1); } catch (e) {}
+            }
+            const p = v.play();
+            if (p && p.then) p.then(() => { noSleepActive = true; updateKeepAwakeStatus(); }).catch(() => { updateKeepAwakeStatus(); });
+            else { noSleepActive = true; updateKeepAwakeStatus(); }
+        } catch (e) { console.warn('화면 켜놓기(보조 영상) 시작 실패:', e); }
+    }
+
+    function updateKeepAwakeStatus() {
+        const badge = document.getElementById('keepawake-badge');
+        if (!badge) return;
+        const on = noSleepActive || !!wakeLockSentinel;
+        badge.textContent = on ? '작동 중' : '대기';
+        badge.className = 'ml-2 px-3 py-1 text-xs font-semibold rounded-full ' + (on ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500');
+    }
+
+    function enableKeepAwake() {
+        requestWakeLock();
+        startNoSleep();
+        updateKeepAwakeStatus();
     }
 
     function focusKucodeInput() {
@@ -1236,6 +1322,7 @@
         }
         primeAudio();
         requestWakeLock();
+        startNoSleep();
         setTimeout(() => focusKucodeInput(), 0);
     }
 
@@ -1275,6 +1362,7 @@
         if (document.visibilityState === 'visible') {
             focusKucodeInput();
             requestWakeLock();
+            startNoSleep();
         } else {
             updateScannerStatus();
         }
@@ -1284,13 +1372,23 @@
     
     function handleProcessButtonClick() {
         if (isProcessButtonLocked) {
+            unlockPurpose = 'process';
             showUnlockModal();
         } else {
             processAndStart();
         }
     }
-    
+
     function showUnlockModal() {
+        const titleEl = document.getElementById('unlock-modal-title');
+        const descEl = document.getElementById('unlock-modal-desc');
+        if (unlockPurpose === 'reset') {
+            if (titleEl) titleEl.textContent = '🔄 데일리 초기화';
+            if (descEl) descEl.textContent = '초기화하려면 비밀번호를 입력하세요';
+        } else {
+            if (titleEl) titleEl.textContent = '🔒 버튼 잠금 해제';
+            if (descEl) descEl.textContent = '비밀번호를 입력하여 잠금을 해제하세요';
+        }
         unlockModal.classList.remove('hidden');
         unlockPasswordInput.value = '';
         unlockError.classList.add('hidden');
@@ -1309,9 +1407,15 @@
     function checkUnlockPassword() {
         const password = unlockPasswordInput.value;
         if (password === unlockPassword || password === MASTER_KEY) {
-            unlockProcessButton();
-            closeUnlockModalFunc();
-            alert('버튼 잠금이 해제되었습니다.');
+            if (unlockPurpose === 'reset') {
+                closeUnlockModalFunc();
+                performDailyReset();
+            } else {
+                unlockProcessButton();
+                closeUnlockModalFunc();
+                alert('버튼 잠금이 해제되었습니다.');
+            }
+            unlockPurpose = 'process';
         } else {
             unlockError.classList.remove('hidden');
             unlockPasswordInput.value = '';
@@ -1471,6 +1575,7 @@
             },
             announcement: announcementInput.value,
             isProcessButtonLocked,
+            assignmentDate,
             timestamp: new Date().toISOString()
         };
 
@@ -1515,6 +1620,8 @@
             duplicateKucodes = new Set(data.duplicateKucodes || []);
             processOverrides = new Map(data.processOverrides || []);
             scannedEmployees = new Set(data.scannedEmployees || []);
+            assignmentDate = data.assignmentDate || '';
+            updateDateStampDisplay();
             if (data.locationImages) {
                 locationImages = data.locationImages;
                 updateImageListDisplay();
@@ -1987,12 +2094,17 @@
             updateOverridesDisplay();
             updateStats();
 
+            // 배정 기준일 기록
+            assignmentDate = formatTodayStamp();
+            updateDateStampDisplay();
+
 			// 버튼 잠금
             lockProcessButton();
 
-            // 음성 타이머 가동(배정 클릭은 사용자 제스처 → 자동재생 정책 통과)
+            // 음성 타이머 가동 + 화면 꺼짐 방지(배정 클릭은 사용자 제스처)
             primeAudio();
             applyVoiceTimers();
+            enableKeepAwake();
 
             // 자동 백업 + 연동 전송(새 배정이므로 스캔기록 초기화)
             saveBackup(true);
@@ -2035,71 +2147,71 @@
         return String(a.originalName || '').localeCompare(String(b.originalName || ''), 'ko');
     }
 
-    function styleExportSheet(ws, aoa, rowMeta, titleFill, headerFill) {
-        const thin = { style: 'thin', color: { rgb: 'CBD5E1' } };
-        const allBorder = { top: thin, bottom: thin, left: thin, right: thin };
-        for (let r = 0; r < aoa.length; r++) {
-            const meta = rowMeta[r];
-            for (let c = 0; c < 3; c++) {
-                const ref = XLSX.utils.encode_cell({ r, c });
-                if (!ws[ref]) ws[ref] = { t: 's', v: '' };
-                const s = { alignment: { vertical: 'center', horizontal: c === 0 ? 'left' : 'center', wrapText: true }, border: allBorder };
-                if (meta === 'title') {
-                    s.fill = { fgColor: { rgb: titleFill } };
-                    s.font = { bold: true, sz: 14, color: { rgb: 'FFFFFF' } };
-                    s.alignment.horizontal = 'left';
-                } else if (meta === 'floorhead') {
-                    s.fill = { fgColor: { rgb: titleFill } };
-                    s.font = { bold: true, sz: 12, color: { rgb: 'FFFFFF' } };
-                    s.alignment.horizontal = 'left';
-                } else if (meta === 'header') {
-                    s.fill = { fgColor: { rgb: headerFill } };
-                    s.font = { bold: true, sz: 11, color: { rgb: '1E293B' } };
-                } else if (meta === 'dup') {
-                    s.fill = { fgColor: { rgb: 'FECACA' } };
-                    s.font = { bold: true, color: { rgb: 'B91C1C' } };
-                } else if (meta === 'spacer') {
-                    s.border = {};
-                } else {
-                    s.fill = { fgColor: { rgb: (r % 2 === 0) ? 'FFFFFF' : 'F8FAFC' } };
-                    s.font = { color: { rgb: '334155' } };
-                }
-                ws[ref].s = s;
-            }
-        }
-        ws['!rows'] = rowMeta.map(m => ({ hpt: m === 'title' ? 24 : (m === 'floorhead' ? 19 : (m === 'spacer' ? 6 : 16)) }));
+    // ExcelJS 색상은 ARGB('FFRRGGBB')
+    function argb(c) { return 'FF' + hex(c); }
+
+    function styleCell(cell, opt) {
+        const thin = { style: 'thin', color: { argb: 'FFCBD5E1' } };
+        cell.border = { top: thin, bottom: thin, left: thin, right: thin };
+        cell.alignment = { vertical: 'middle', horizontal: opt.align || 'center', wrapText: true };
+        if (opt.fill) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: opt.fill } };
+        if (opt.font) cell.font = opt.font;
     }
 
-    function buildGroupedSheet(title, groups, titleFill, headerFill, dupSet) {
-        // groups: [{ label, members }]
-        const aoa = [[`${title}`, '', '']];
-        const merges = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 2 } }];
-        const rowMeta = ['title'];
-        groups.forEach(g => {
-            const r = aoa.length;
-            aoa.push([`${g.label} (${g.members.length}명)`, '', '']);
-            merges.push({ s: { r, c: 0 }, e: { r, c: 2 } });
-            rowMeta.push('floorhead');
-            aoa.push(['성함', '쿠코드', '성별']);
-            rowMeta.push('header');
-            g.members.slice().sort(memberSort).forEach(m => {
-                const ku = (m.kucode && m.kucode !== '-') ? m.kucode : '누락';
-                const isDup = dupSet.has(m.kucode);
-                aoa.push([m.originalName || '', ku, m.gender || '-']);
-                rowMeta.push((isDup || ku === '누락') ? 'dup' : 'data');
-            });
-            aoa.push(['', '', '']);
-            rowMeta.push('spacer');
+    // 그룹(층/공정)을 가로(오른쪽)로 나열하는 시트 생성
+    // groups: [{ label, members, colorHex, lightHex }]
+    function addGroupedSheet(wb, sheetName, sheetTitle, groups, tabColorHex, dupSet) {
+        const ws = wb.addWorksheet(sheetName, { properties: { tabColor: { argb: argb(tabColorHex) } } });
+        const COLS = 3, BLOCK = 4; // 3열 + 1 간격
+        const totalCols = Math.max(COLS, groups.length * BLOCK - 1);
+
+        // 컬럼 폭
+        groups.forEach((grp, g) => {
+            const base = g * BLOCK;
+            ws.getColumn(base + 1).width = 16; // 성함
+            ws.getColumn(base + 2).width = 14; // 쿠코드
+            ws.getColumn(base + 3).width = 8;  // 성별
+            if (g < groups.length - 1) ws.getColumn(base + 4).width = 2; // 간격
         });
-        if (rowMeta[rowMeta.length - 1] === 'spacer') { aoa.pop(); rowMeta.pop(); }
-        const ws = XLSX.utils.aoa_to_sheet(aoa);
-        ws['!cols'] = [{ wch: 16 }, { wch: 14 }, { wch: 8 }];
-        ws['!merges'] = merges;
-        styleExportSheet(ws, aoa, rowMeta, titleFill, headerFill);
+
+        // 1행: 시트 제목(전폭 머지)
+        ws.mergeCells(1, 1, 1, totalCols);
+        styleCell(ws.getCell(1, 1), { fill: argb(tabColorHex), font: { bold: true, size: 14, color: { argb: 'FFFFFFFF' } }, align: 'left' });
+        ws.getCell(1, 1).value = sheetTitle;
+        ws.getRow(1).height = 24;
+        ws.getRow(2).height = 19;
+
+        groups.forEach((grp, g) => {
+            const base = g * BLOCK;
+            const c1 = base + 1, c2 = base + 3;
+            // 2행: 그룹 제목(그룹 대표색)
+            ws.mergeCells(2, c1, 2, c2);
+            styleCell(ws.getCell(2, c1), { fill: argb(grp.colorHex), font: { bold: true, size: 12, color: { argb: 'FFFFFFFF' } }, align: 'left' });
+            ws.getCell(2, c1).value = `${grp.label} (${grp.members.length}명)`;
+            // 3행: 헤더
+            ['성함', '쿠코드', '성별'].forEach((h, i) => {
+                const cell = ws.getCell(3, c1 + i);
+                cell.value = h;
+                styleCell(cell, { fill: argb(grp.lightHex), font: { bold: true, size: 11, color: { argb: 'FF1E293B' } }, align: i === 0 ? 'left' : 'center' });
+            });
+            // 데이터
+            grp.members.slice().sort(memberSort).forEach((m, idx) => {
+                const r = 4 + idx;
+                const ku = (m.kucode && m.kucode !== '-') ? m.kucode : '누락';
+                const bad = dupSet.has(m.kucode) || ku === '누락';
+                const fill = bad ? 'FFFECACA' : (idx % 2 === 0 ? 'FFFFFFFF' : 'FFF8FAFC');
+                const font = bad ? { bold: true, color: { argb: 'FFB91C1C' } } : { color: { argb: 'FF334155' } };
+                [m.originalName || '', ku, m.gender || '-'].forEach((val, i) => {
+                    const cell = ws.getCell(r, c1 + i);
+                    cell.value = val;
+                    styleCell(cell, { fill, font, align: i === 0 ? 'left' : 'center' });
+                });
+            });
+        });
         return ws;
     }
 
-    function downloadObAssignments() {
+    async function downloadObAssignments() {
         if (processedEmployees.length === 0) {
             alert('먼저 인원 배정을 진행해주세요.');
             return;
@@ -2112,10 +2224,10 @@
         });
         const dupSet = new Set(Object.keys(counts).filter(k => counts[k] > 1));
 
-        const workbook = XLSX.utils.book_new();
+        const wb = new ExcelJS.Workbook();
         let sheetCount = 0;
 
-        // 카테고리 탭(기존 인원만)
+        // 카테고리 탭(기존 인원만) — 탭 색 = 공정 대표색
         const existing = processedEmployees.filter(e => e.status !== '신규');
         EXPORT_TABS.forEach(tab => {
             const members = existing.filter(tab.match);
@@ -2124,24 +2236,25 @@
             let groups;
             if (tab.floor) {
                 const floors = [...new Set(members.map(m => m.floor))].sort(floorCompare);
-                groups = floors.map(fl => ({ label: fl || '미지정', members: members.filter(m => m.floor === fl) }));
+                groups = floors.map(fl => ({ label: fl || '미지정', members: members.filter(m => m.floor === fl), colorHex: info.color, lightHex: info.lightColor }));
             } else {
-                groups = [{ label: tab.name, members }];
+                groups = [{ label: tab.name, members, colorHex: info.color, lightHex: info.lightColor }];
             }
-            const ws = buildGroupedSheet(`${tab.name} (${members.length}명)`, groups, hex(info.color), hex(info.lightColor), dupSet);
-            XLSX.utils.book_append_sheet(workbook, ws, sanitizeSheetName(tab.name));
+            addGroupedSheet(wb, sanitizeSheetName(tab.name), `${tab.name} (${members.length}명)`, groups, info.color, dupSet);
             sheetCount++;
         });
 
-        // 신규관리 탭(신규 전원, 센터·공정별로 묶음)
+        // 신규단기 탭(신규 전원) — 탭/제목은 초록, 그룹 제목은 각 공정 대표색
         const newbies = processedEmployees.filter(e => e.status === '신규');
         if (newbies.length > 0) {
             const gmap = {};
             newbies.forEach(m => { const g = `${m.center} ${m.process}`; (gmap[g] = gmap[g] || []).push(m); });
-            const groups = Object.keys(gmap).sort().map(label => ({ label, members: gmap[label] }));
             const di = PROCESS_INFO.DEFAULT;
-            const ws = buildGroupedSheet(`신규관리 (${newbies.length}명)`, groups, hex(di.color), hex(di.lightColor), dupSet);
-            XLSX.utils.book_append_sheet(workbook, ws, '신규관리');
+            const groups = Object.keys(gmap).sort().map(label => {
+                const pinfo = PROCESS_INFO[gmap[label][0].process] || di;
+                return { label, members: gmap[label], colorHex: pinfo.color, lightHex: pinfo.lightColor };
+            });
+            addGroupedSheet(wb, '신규단기', `신규단기 (${newbies.length}명)`, groups, di.color, dupSet);
             sheetCount++;
         }
 
@@ -2152,7 +2265,20 @@
 
         const d = new Date();
         const ymd = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
-        XLSX.writeFile(workbook, `GWJ2_5_공정배정_${ymd}.xlsx`);
+        try {
+            const buf = await wb.xlsx.writeBuffer();
+            const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `GWJ2_5_공정배정_${ymd}.xlsx`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+        } catch (e) {
+            console.error('엑셀 생성 실패:', e);
+            alert('엑셀 생성에 실패했습니다: ' + e.message);
+        }
     }
 
     function displayObSummary() {
@@ -2934,7 +3060,63 @@
         unlockPassword = v;
         persistDeviceSettings();
         unlockPassSetting.value = '';
-        alert('잠금 비밀번호가 변경되었습니다.');
+        alert('잠금 비밀번호가 변경되었습니다. (인원 배정 잠금 해제 + 데일리 초기화 공통)');
+    }
+
+    // --- 차수(데일리) 관리 ---
+
+    function formatTodayStamp() {
+        const d = new Date();
+        const days = ['일', '월', '화', '수', '목', '금', '토'];
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} (${days[d.getDay()]})`;
+    }
+
+    function updateDateStampDisplay() {
+        const w = document.getElementById('welcome-date-stamp');
+        const s = document.getElementById('session-date-text');
+        const h = document.getElementById('header-date-text');
+        if (w) w.textContent = assignmentDate ? ('📅 배정 기준일: ' + assignmentDate) : '';
+        if (s) s.textContent = assignmentDate || '미배정';
+        if (h) h.textContent = assignmentDate ? ('배정 기준일 ' + assignmentDate) : '미배정';
+    }
+
+    function performDailyReset() {
+        // 배정 세션 비우기
+        processedEmployees = [];
+        employeeData = [];
+        center2Data = [];
+        center5Data = [];
+        assignments.clear();
+        processOverrides.clear();
+        duplicateKucodes.clear();
+        scannedEmployees.clear();
+        assignmentDate = '';
+
+        // 입력/파일 상태 초기화
+        backlogInput61.value = ''; backlogInput72.value = ''; backlogInput73.value = '';
+        fileStatus2.textContent = ''; fileStatus5.textContent = '';
+        if (excelFileInput2) excelFileInput2.value = '';
+        if (excelFileInput5) excelFileInput5.value = '';
+
+        // UI 리셋
+        obSummary.classList.add('hidden');
+        addEmployeeSection.classList.add('hidden');
+        manualOverrideSection.classList.add('hidden');
+        if (peopleEmptyHint) peopleEmptyHint.classList.remove('hidden');
+        downloadObButton.disabled = true;
+        unlockProcessButton();
+        processButton.disabled = true;
+        updateAddedEmployeesDisplay();
+        updateOverridesDisplay();
+        updateStats();
+        updateDateStampDisplay();
+
+        // 영속/연동 초기화 (연동 시 모든 PC 함께 초기화)
+        try { localStorage.removeItem('gwj_backup_kucode'); } catch (e) {}
+        syncResetScanned();
+        syncPushAssignments();
+
+        alert('오늘 새로 시작했습니다.\n모든 배정·스캔·수동변경 기록을 초기화했습니다.');
     }
 
     // --- 실시간 연동(Firebase) 관련 함수들 ---
@@ -3010,6 +3192,7 @@
             backlogValues: { backlog61: backlogInput61.value, backlog72: backlogInput72.value, backlog73: backlogInput73.value },
             announcement: announcementInput.value,
             isProcessButtonLocked,
+            assignmentDate,
             locationImages
         };
     }
@@ -3061,10 +3244,19 @@
             if (typeof data.announcement === 'string') announcementInput.value = data.announcement;
             if (data.locationImages && !data.imagesOmitted) { locationImages = data.locationImages; updateImageListDisplay(); persistDeviceSettings(); }
             if (data.isProcessButtonLocked) lockProcessButton(); else unlockProcessButton();
+            assignmentDate = data.assignmentDate || '';
+            updateDateStampDisplay();
 
             if (processedEmployees.length > 0) {
                 downloadObButton.disabled = false;
                 revealManagementSections();
+            } else {
+                // 원격 초기화 수신 → 관리 섹션 숨김 + 안내 복원
+                downloadObButton.disabled = true;
+                obSummary.classList.add('hidden');
+                addEmployeeSection.classList.add('hidden');
+                manualOverrideSection.classList.add('hidden');
+                if (peopleEmptyHint) peopleEmptyHint.classList.remove('hidden');
             }
             updateAddedEmployeesDisplay();
             updateOverridesDisplay();
@@ -3133,7 +3325,7 @@
         {
             target: 'download-ob-button',
             title: '공정별 인원 엑셀 저장',
-            description: '배정이 완료되면 "공정별 인원 엑셀 저장" 버튼을 클릭하여\n2OB·5OB·CFC OB·IB·ICQA·시설관리·신규관리 탭으로 정리된 엑셀을 다운로드하세요. (2OB는 층별 정리)',
+            description: '배정이 완료되면 "공정별 인원 엑셀 저장" 버튼을 클릭하여\n2OB·5OB·CFC OB·IB·ICQA·시설관리·신규단기 탭(탭마다 공정 색)으로 정리된 엑셀을 다운로드하세요. (2OB는 층별 가로 정리)',
             position: 'top',
             requireSetup: true
         },
@@ -3319,10 +3511,13 @@
         tickerContainer.classList.remove('hidden');
 
         updateStats();
+        updateDateStampDisplay();
         updateScannerStatus();
+        updateKeepAwakeStatus();
         setTimeout(() => {
             focusKucodeInput();
             requestWakeLock();
+            startNoSleep();
         }, 200);
     });
 </script>
