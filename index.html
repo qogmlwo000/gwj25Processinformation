@@ -1,0 +1,3328 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GWJ2,5 공정안내 TOOL (쿠코드 기반 - Bennett)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- xlsx-js-style: SheetJS 0.18.5 포크 (전역 XLSX 동일, 셀 색상/서식 지원) -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+    <!-- Firebase (Firestore) 실시간 연동 -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Noto+Sans+KR:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        body { 
+            font-family: 'Inter', 'Noto Sans KR', sans-serif; 
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+        }
+        
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: rgba(0,0,0,0.05); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb { background: linear-gradient(135deg, #64748b, #475569); border-radius: 10px; }
+        
+        .glass-morphism {
+            background: rgba(255, 255, 255, 0.25);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.7) 100%);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.3);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+        
+        #ticker-text {
+            transition: opacity 0.5s ease-in-out, transform 0.5s ease-in-out;
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        #ticker-text.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        input[type="number"] { -moz-appearance: textfield; }
+        
+        .spinner {
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 3px solid #fff;
+            width: 16px;
+            height: 16px;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .gradient-text {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .pulse-ring {
+            animation: pulse-ring 2s infinite;
+        }
+        
+        @keyframes pulse-ring {
+            0% { transform: scale(1); opacity: 1; }
+            100% { transform: scale(1.2); opacity: 0; }
+        }
+        
+        .hover-lift {
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        }
+        
+        .text-shadow-strong {
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        .hover-lift {
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        }
+        
+        .hover-lift:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+        }
+        
+        /* 부드러운 등장 애니메이션 */
+        @keyframes slideInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+        
+        .animate-slide-in {
+            animation: slideInUp 0.5s ease-out;
+        }
+        
+        .animate-fade-in {
+            animation: fadeIn 0.5s ease-out;
+        }
+        
+        /* 아이콘 바운스 - 부드럽게 */
+        @keyframes gentle-bounce {
+            0%, 100% {
+                transform: translateY(0);
+            }
+            50% {
+                transform: translateY(-10px);
+            }
+        }
+        
+        .gentle-bounce {
+            animation: gentle-bounce 2s ease-in-out infinite;
+        }
+        
+        /* 부드러운 글로우 */
+        .soft-glow {
+            box-shadow: 0 0 30px rgba(59, 130, 246, 0.3);
+        }
+		
+		/* 잠금 상태 스타일 */
+        .button-locked {
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .button-locked::before {
+            content: '🔒';
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.2rem;
+        }
+
+        /* 투어 가이드 스타일 */
+        .tour-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 9998;
+            pointer-events: auto;
+            transition: opacity 0.3s ease;
+        }
+        .tour-highlight {
+            position: absolute;
+            z-index: 9999;
+            border-radius: 16px;
+            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.7);
+            pointer-events: none;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .tour-highlight::before {
+            content: '';
+            position: absolute;
+            inset: -4px;
+            border-radius: 20px;
+            border: 3px solid #60a5fa;
+            animation: tour-pulse 2s ease-in-out infinite;
+        }
+        @keyframes tour-pulse {
+            0%, 100% { opacity: 1; border-color: #60a5fa; }
+            50% { opacity: 0.5; border-color: #93c5fd; }
+        }
+        .tour-tooltip {
+            position: absolute;
+            z-index: 10000;
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.3);
+            max-width: 400px;
+            width: max-content;
+            pointer-events: auto;
+            animation: tooltipAppear 0.3s ease-out;
+        }
+        @keyframes tooltipAppear {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .tour-tooltip-arrow {
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            background: white;
+            transform: rotate(45deg);
+        }
+
+        /* 설정 탭 */
+        .settings-tab .tab-badge { background:#e2e8f0; color:#64748b; }
+        .settings-tab:hover { color:#334155; }
+        .settings-tab.tab-active { background:#ffffff; box-shadow:0 4px 14px rgba(15,23,42,0.08); color:#1d4ed8; }
+        .settings-tab.tab-active .tab-badge { background:#3b82f6; color:#ffffff; }
+    </style>
+</head>
+<body class="text-slate-800 min-h-screen">
+
+    <div id="stats-panel" class="fixed top-4 left-4 z-40 hidden">
+        <div class="stat-card rounded-2xl p-6 w-80">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-bold text-slate-700">실시간 현황</h3>
+                <div class="pulse-ring bg-green-500 w-3 h-3 rounded-full"></div>
+            </div>
+            
+            <div class="space-y-4">
+                <div class="flex justify-between items-center">
+                    <span class="text-slate-600 font-medium">스캔 완료</span>
+                    <div class="text-right">
+                        <span id="scanned-count" class="text-2xl font-black text-green-600">0</span>
+                        <span class="text-slate-400">/ </span>
+                        <span id="total-count" class="text-xl font-bold text-slate-600">0</span>
+                    </div>
+                </div>
+                
+                <div class="w-full bg-slate-200 rounded-full h-3 overflow-hidden">
+                    <div id="progress-bar" class="h-full bg-gradient-to-r from-green-400 to-emerald-500 rounded-full transition-all duration-500 ease-out" style="width: 0%"></div>
+                </div>
+                
+                <div class="flex justify-between text-sm">
+                    <span class="text-slate-500">진행률</span>
+                    <span id="progress-percent" class="font-bold text-slate-700">0%</span>
+                </div>
+                
+                <button id="show-missing-btn" class="w-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-semibold py-2.5 px-4 rounded-xl hover:shadow-lg transition-all duration-200">
+                    미스캔 인원 보기
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="missing-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[80vh] overflow-hidden">
+            <div class="bg-gradient-to-r from-red-500 to-red-600 text-white p-6">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-2xl font-bold">미스캔 인원 목록</h2>
+                    <button id="close-missing-modal" class="text-white/80 hover:text-white text-2xl font-bold">&times;</button>
+                </div>
+                <p class="text-red-100 mt-2">아직 스캔하지 않은 인원들입니다</p>
+            </div>
+            <div id="missing-list" class="p-6 overflow-y-auto max-h-96">
+                </div>
+        </div>
+    </div>
+	
+	<div id="unlock-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+            <div class="bg-gradient-to-r from-amber-500 to-orange-600 text-white p-6">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-2xl font-bold">🔒 버튼 잠금 해제</h2>
+                    <button id="close-unlock-modal" class="text-white/80 hover:text-white text-2xl font-bold">&times;</button>
+                </div>
+                <p class="text-amber-100 mt-2">비밀번호를 입력하여 잠금을 해제하세요</p>
+            </div>
+            <div class="p-6">
+                <input type="password" id="unlock-password-input" placeholder="비밀번호 입력" class="w-full p-4 bg-slate-50 rounded-xl border-2 border-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent text-slate-700 font-medium text-center text-lg" maxlength="4">
+                <div class="mt-4 flex gap-3">
+                    <button id="unlock-cancel-btn" class="flex-1 bg-slate-200 text-slate-700 font-semibold py-3 px-4 rounded-xl hover:bg-slate-300 transition-all duration-200">
+                        취소
+                    </button>
+                    <button id="unlock-submit-btn" class="flex-1 bg-gradient-to-r from-amber-500 to-orange-600 text-white font-bold py-3 px-4 rounded-xl hover:shadow-lg transition-all duration-200">
+                        확인
+                    </button>
+                </div>
+                <p id="unlock-error" class="text-red-500 text-sm mt-3 text-center hidden">비밀번호가 올바르지 않습니다</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="setup-view" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div id="setup-card" class="w-[95vw] max-w-[1400px] h-[90vh] bg-white rounded-3xl shadow-2xl border border-white/20 flex flex-col overflow-hidden">
+            <!-- 헤더 -->
+            <div class="flex items-center gap-4 px-8 py-5 border-b border-slate-100 flex-shrink-0">
+                <div class="w-14 h-14 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center flex-shrink-0">
+                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-black gradient-text leading-tight">GWJ2 / GWJ5 공정 안내 시스템 설정</h1>
+                    <p class="text-slate-500 text-sm mt-0.5">왼쪽 메뉴에서 ①→④ 순서대로 설정하세요 · 쿠코드 기반</p>
+                </div>
+            </div>
+
+            <!-- 본문: 좌측 탭 + 우측 내용 -->
+            <div class="flex flex-1 min-h-0">
+                <nav class="w-60 flex-shrink-0 border-r border-slate-100 bg-slate-50/70 p-4 space-y-2 overflow-y-auto">
+                    <button type="button" data-tab="prep" class="settings-tab tab-active w-full text-left px-4 py-3 rounded-xl font-bold text-slate-600 hover:bg-white transition-all flex items-center gap-3">
+                        <span class="tab-badge w-7 h-7 rounded-lg flex items-center justify-center text-sm font-black flex-shrink-0">1</span>
+                        <span>파일 · 배정 준비</span>
+                    </button>
+                    <button type="button" data-tab="people" class="settings-tab w-full text-left px-4 py-3 rounded-xl font-bold text-slate-600 hover:bg-white transition-all flex items-center gap-3">
+                        <span class="tab-badge w-7 h-7 rounded-lg flex items-center justify-center text-sm font-black flex-shrink-0">2</span>
+                        <span>인원 관리</span>
+                    </button>
+                    <button type="button" data-tab="media" class="settings-tab w-full text-left px-4 py-3 rounded-xl font-bold text-slate-600 hover:bg-white transition-all flex items-center gap-3">
+                        <span class="tab-badge w-7 h-7 rounded-lg flex items-center justify-center text-sm font-black flex-shrink-0">3</span>
+                        <span>음성 · 이미지</span>
+                    </button>
+                    <button type="button" data-tab="system" class="settings-tab w-full text-left px-4 py-3 rounded-xl font-bold text-slate-600 hover:bg-white transition-all flex items-center gap-3">
+                        <span class="tab-badge w-7 h-7 rounded-lg flex items-center justify-center text-sm font-black flex-shrink-0">4</span>
+                        <span>시스템</span>
+                    </button>
+                    <div class="pt-3 mt-3 border-t border-slate-200">
+                        <p class="px-2 text-xs text-slate-400 leading-relaxed">설정 후 아래 <b>인원 배정하기</b>를 누르면 디스플레이가 시작됩니다.</p>
+                    </div>
+                </nav>
+
+                <div class="flex-1 min-h-0 overflow-y-auto p-8 bg-white">
+                    <!-- ① 파일 · 배정 준비 -->
+                    <div data-panel="prep" class="settings-panel space-y-6">
+                        <div id="step-upload-section" class="bg-gradient-to-br from-slate-50 to-slate-100 rounded-2xl p-6 border border-slate-200">
+                            <div class="flex items-center mb-4">
+                                <div class="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center mr-3">
+                                    <span class="text-white font-bold text-sm">1</span>
+                                </div>
+                                <h2 class="text-xl font-bold text-slate-700">센터별 엑셀 파일 업로드</h2>
+                            </div>
+                            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                <div class="space-y-3">
+                                    <label for="excel-file-input-2" class="block font-semibold text-slate-600">2센터 파일</label>
+                                    <div class="relative">
+                                        <input type="file" id="excel-file-input-2" accept=".xlsx, .xls" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"/>
+                                        <div class="bg-white border-2 border-dashed border-slate-300 rounded-xl p-6 text-center hover:border-blue-400 hover:bg-blue-50 transition-all duration-200">
+                                            <svg class="w-8 h-8 text-slate-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                                            </svg>
+                                            <p class="text-slate-500 font-medium">파일을 선택하거나 드래그하세요</p>
+                                        </div>
+                                    </div>
+                                    <p id="file-status-2" class="text-sm text-green-600 font-medium h-5"></p>
+                                </div>
+                                <div class="space-y-3">
+                                    <label for="excel-file-input-5" class="block font-semibold text-slate-600">5센터 파일</label>
+                                    <div class="relative">
+                                        <input type="file" id="excel-file-input-5" accept=".xlsx, .xls" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"/>
+                                        <div class="bg-white border-2 border-dashed border-slate-300 rounded-xl p-6 text-center hover:border-blue-400 hover:bg-blue-50 transition-all duration-200">
+                                            <svg class="w-8 h-8 text-slate-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                                            </svg>
+                                            <p class="text-slate-500 font-medium">파일을 선택하거나 드래그하세요</p>
+                                        </div>
+                                    </div>
+                                    <p id="file-status-5" class="text-sm text-green-600 font-medium h-5"></p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="step-backlog-section" class="bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl p-6 border border-amber-200">
+                            <div class="flex items-center mb-4">
+                                <div class="w-8 h-8 bg-amber-500 rounded-lg flex items-center justify-center mr-3">
+                                    <span class="text-white font-bold text-sm">2</span>
+                                </div>
+                                <h2 class="text-xl font-bold text-slate-700">2센터 OB 여성 층별 백로그 입력</h2>
+                                <span class="ml-2 px-3 py-1 bg-amber-100 text-amber-700 text-xs font-semibold rounded-full">선택사항</span>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div>
+                                    <label for="backlog-61" class="block font-medium text-slate-600 mb-2">6-1층 + 6-3층</label>
+                                    <input type="number" id="backlog-61" placeholder="숫자만 입력" class="w-full p-4 bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent text-slate-700 font-medium">
+                                </div>
+                                <div>
+                                    <label for="backlog-72" class="block font-medium text-slate-600 mb-2">7-2층</label>
+                                    <input type="number" id="backlog-72" placeholder="숫자만 입력" class="w-full p-4 bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent text-slate-700 font-medium">
+                                </div>
+                                <div>
+                                    <label for="backlog-73" class="block font-medium text-slate-600 mb-2">7-3층</label>
+                                    <input type="number" id="backlog-73" placeholder="숫자만 입력" class="w-full p-4 bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent text-slate-700 font-medium">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl p-6 border border-green-200">
+                            <div class="flex items-center mb-4">
+                                <div class="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center mr-3">
+                                    <span class="text-white font-bold text-sm">3</span>
+                                </div>
+                                <h2 class="text-xl font-bold text-slate-700">추가 공지사항 입력</h2>
+                                <span class="ml-2 px-3 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-full">선택사항</span>
+                            </div>
+                            <input type="text" id="announcement-input" class="w-full p-4 bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent text-slate-700" placeholder="구분하고 싶은 문장마다 '|'를 넣어주세요">
+                        </div>
+                    </div>
+
+                    <!-- ② 인원 관리 -->
+                    <div data-panel="people" class="settings-panel space-y-6 hidden">
+                        <div id="people-empty-hint" class="bg-slate-50 border border-slate-200 rounded-2xl p-8 text-center text-slate-500">
+                            <div class="text-4xl mb-2">🗂️</div>
+                            <p class="font-semibold text-slate-600">인원 배정 후 사용할 수 있습니다.</p>
+                            <p class="text-sm mt-1">‘① 파일·배정 준비’에서 엑셀 업로드 후 아래 <b>인원 배정하기</b>를 눌러주세요.</p>
+                        </div>
+
+                        <div id="add-employee-section" class="hidden bg-gradient-to-br from-teal-50 to-cyan-50 rounded-2xl p-6 border border-teal-200">
+                            <div class="flex items-center mb-4">
+                                <div class="w-9 h-9 bg-teal-500 rounded-lg flex items-center justify-center mr-3">
+                                    <span class="text-white text-lg">＋</span>
+                                </div>
+                                <h2 class="text-xl font-bold text-slate-700">인원 추가</h2>
+                                <span class="ml-2 px-3 py-1 bg-teal-100 text-teal-700 text-xs font-semibold rounded-full">엑셀 미등록 인원</span>
+                            </div>
+                            <textarea id="add-bulk-input" rows="4" placeholder="한 줄에 한 명씩: 쿠코드 이름 성별  (예: H4759815 홍길동 남)" class="w-full p-4 bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent text-slate-700 resize-y text-sm mb-1"></textarea>
+                            <p class="text-xs text-slate-400 mb-3">쉼표·공백·줄바꿈으로 구분. 성별(남/여)은 생략 가능. 아래 센터/공정/층이 공통 적용됩니다.</p>
+                            <div class="grid grid-cols-1 lg:grid-cols-3 gap-3 mb-3">
+                                <select id="add-center-select" class="w-full p-3 bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent text-slate-700">
+                                    <option value="2센터">2센터</option>
+                                    <option value="5센터">5센터</option>
+                                </select>
+                                <select id="add-process-select" class="w-full p-3 bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent text-slate-700">
+                                </select>
+                                <select id="add-floor-select" class="w-full p-3 bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent text-slate-700">
+                                </select>
+                            </div>
+                            <button id="add-employee-button" class="w-full bg-gradient-to-r from-teal-500 to-cyan-600 text-white font-bold py-3 px-6 rounded-xl hover:shadow-lg transition-all duration-200 hover-lift mb-2">
+                                + 인원 추가 (여러 명 가능)
+                            </button>
+                            <p class="text-xs text-slate-400 mb-1">2센터 OB는 층 미선택 시 성별로 자동 배정됩니다.</p>
+                            <div id="added-employee-list" class="space-y-2 text-sm text-slate-600"></div>
+                        </div>
+
+                        <div id="manual-override-section" class="hidden bg-gradient-to-br from-indigo-50 to-purple-50 rounded-2xl p-6 border border-indigo-200">
+                            <div class="flex items-center mb-4">
+                                <div class="w-9 h-9 bg-indigo-500 rounded-lg flex items-center justify-center mr-3">
+                                    <span class="text-white text-lg">⇄</span>
+                                </div>
+                                <h2 class="text-xl font-bold text-slate-700">공정/층 수동 변경</h2>
+                            </div>
+                            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+                                <div>
+                                    <textarea id="override-kucode-input" placeholder="쿠코드를 입력하세요 (여러 명일 경우 줄바꿈, 쉼표, 공백으로 구분)" rows="3" class="w-full p-4 bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-slate-700 resize-y text-sm"></textarea>
+                                    <p class="text-xs text-slate-400 mt-1">예: H4759815, A1234567 또는 줄바꿈으로 구분</p>
+                                </div>
+                                <div class="grid grid-cols-1 gap-3">
+                                    <select id="override-process-select" class="w-full p-4 bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-slate-700">
+                                    </select>
+                                    <select id="override-floor-select" class="w-full p-4 bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-slate-700">
+                                    </select>
+                                    <button id="override-apply-button" class="w-full bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-bold py-4 px-6 rounded-xl hover:shadow-lg transition-all duration-200 hover-lift">
+                                        일괄 적용
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="override-list" class="space-y-2 text-sm text-slate-600"></div>
+                        </div>
+
+                        <div id="ob-summary" class="hidden">
+                            <div class="bg-gradient-to-br from-red-50 to-rose-50 rounded-2xl p-6 border border-red-200">
+                                <h2 id="ob-summary-title" class="text-xl font-bold text-red-600 mb-4">2센터 OB/CFC OB 공정 배정 현황</h2>
+                                <div id="ob-summary-content" class="bg-white/70 p-4 rounded-xl max-h-72 overflow-y-auto text-slate-600 border border-red-100"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ③ 음성 · 이미지 -->
+                    <div data-panel="media" class="settings-panel space-y-6 hidden">
+                        <div id="voice-section" class="bg-gradient-to-br from-rose-50 to-pink-50 rounded-2xl p-6 border border-rose-200">
+                            <div class="flex items-center mb-4">
+                                <div class="w-9 h-9 bg-rose-500 rounded-lg flex items-center justify-center mr-3">
+                                    <span class="text-white text-lg">🔊</span>
+                                </div>
+                                <h2 class="text-xl font-bold text-slate-700">정시 음성 안내</h2>
+                                <span class="ml-2 px-3 py-1 bg-rose-100 text-rose-700 text-xs font-semibold rounded-full">선택사항</span>
+                            </div>
+                            <label class="flex items-center gap-2 mb-4 cursor-pointer">
+                                <input type="checkbox" id="voice-enabled" class="w-5 h-5 accent-rose-500">
+                                <span class="font-semibold text-slate-600">정해진 시간마다 음성 자동 재생</span>
+                            </label>
+                            <div id="voice-slots" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
+                            <button type="button" id="voice-add-btn" class="mt-3 w-full border-2 border-dashed border-rose-300 text-rose-600 font-bold py-2.5 rounded-xl hover:bg-rose-100 transition-all">＋ 음성 추가</button>
+                            <p class="text-xs text-slate-400 mt-3">mp3·wav 등. 각 음성마다 재생 간격(분)을 정할 수 있고, 인원 배정/디스플레이 시작 후 자동 반복 재생됩니다.</p>
+                        </div>
+
+                        <div id="location-image-section" class="bg-gradient-to-br from-violet-50 to-fuchsia-50 rounded-2xl p-6 border border-violet-200">
+                            <div class="flex items-center mb-4">
+                                <div class="w-9 h-9 bg-violet-500 rounded-lg flex items-center justify-center mr-3">
+                                    <span class="text-white text-lg">🖼️</span>
+                                </div>
+                                <h2 class="text-xl font-bold text-slate-700">집합 장소 이미지</h2>
+                                <span class="ml-2 px-3 py-1 bg-violet-100 text-violet-700 text-xs font-semibold rounded-full">코드 수정 없이 적용</span>
+                            </div>
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
+                                <select id="img-center-select" class="w-full p-3 bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent text-slate-700">
+                                    <option value="2센터">2센터</option>
+                                    <option value="5센터">5센터</option>
+                                </select>
+                                <select id="img-process-select" class="w-full p-3 bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent text-slate-700">
+                                </select>
+                                <select id="img-floor-select" class="w-full p-3 bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent text-slate-700">
+                                </select>
+                            </div>
+                            <input type="file" id="img-file-input" accept="image/*" class="block w-full text-xs text-slate-500 file:mr-2 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-violet-100 file:text-violet-700 file:font-semibold hover:file:bg-violet-200 cursor-pointer">
+                            <div class="flex items-center gap-3 mt-3">
+                                <img id="img-preview" class="w-16 h-16 object-cover rounded-lg border border-violet-200 hidden" alt="미리보기">
+                                <button id="img-apply-button" class="flex-1 bg-gradient-to-r from-violet-500 to-fuchsia-600 text-white font-bold py-3 px-6 rounded-xl hover:shadow-lg transition-all duration-200 hover-lift">이미지 적용</button>
+                            </div>
+                            <div id="img-list" class="space-y-2 text-sm text-slate-600 mt-3"></div>
+                        </div>
+                    </div>
+
+                    <!-- ④ 시스템 -->
+                    <div data-panel="system" class="settings-panel space-y-6 hidden">
+                        <div id="sync-section" class="bg-gradient-to-br from-sky-50 to-blue-50 rounded-2xl p-6 border border-sky-200">
+                            <div class="flex items-center mb-4">
+                                <div class="w-9 h-9 bg-sky-500 rounded-lg flex items-center justify-center mr-3">
+                                    <span class="text-white text-lg">🔗</span>
+                                </div>
+                                <h2 class="text-xl font-bold text-slate-700">실시간 연동</h2>
+                                <span id="sync-status-badge" class="ml-2 px-3 py-1 bg-slate-100 text-slate-500 text-xs font-semibold rounded-full">미연결</span>
+                            </div>
+                            <p id="sync-info" class="text-sm text-slate-500 leading-relaxed">Firebase에 연결되면 <b>모든 PC가 자동으로 같은 데이터를 공유</b>합니다(기본 켜짐). 한 곳에서 인원 배정/수정하면 다른 PC에 실시간 반영되고, 어디서든 엑셀 다운로드가 가능합니다.</p>
+                        </div>
+
+                        <div id="security-section" class="bg-gradient-to-br from-amber-50 to-yellow-50 rounded-2xl p-6 border border-amber-200">
+                            <div class="flex items-center mb-4">
+                                <div class="w-9 h-9 bg-amber-500 rounded-lg flex items-center justify-center mr-3">
+                                    <span class="text-white text-lg">🔒</span>
+                                </div>
+                                <h2 class="text-xl font-bold text-slate-700">버튼 잠금 비밀번호</h2>
+                            </div>
+                            <p class="text-sm text-slate-500 mb-3">인원 배정 후 ‘인원 배정하기’를 다시 누를 때 입력하는 비밀번호입니다. (기본값 0000)</p>
+                            <div class="flex gap-3">
+                                <input type="text" id="unlock-pass-setting" maxlength="8" inputmode="numeric" placeholder="새 비밀번호" class="flex-1 p-3 bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent text-slate-700 font-medium">
+                                <button type="button" id="unlock-pass-save" class="bg-gradient-to-r from-amber-500 to-orange-600 text-white font-bold px-6 rounded-xl hover:shadow-lg transition-all duration-200">변경</button>
+                            </div>
+                            <p class="text-xs text-slate-400 mt-2">분실 시 마스터키 <b>0127</b>로 항상 해제할 수 있습니다.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 하단 고정 액션바 -->
+            <div id="step-process-buttons" class="flex flex-wrap items-center gap-3 px-8 py-4 border-t border-slate-100 bg-white flex-shrink-0">
+                <button id="process-button" class="flex-1 min-w-[150px] bg-gradient-to-r from-emerald-500 to-green-600 text-white font-bold py-3 px-6 rounded-xl text-lg transition-all duration-200 disabled:from-slate-300 disabled:to-slate-400 disabled:cursor-not-allowed flex items-center justify-center gap-2 hover-lift" disabled>
+                    <span id="process-button-text">인원 배정하기</span>
+                </button>
+                <button id="test-mode-button" class="bg-gradient-to-r from-slate-500 to-slate-600 text-white font-bold py-3 px-5 rounded-xl text-base transition-all duration-200 hover-lift">
+                    테스트 모드
+                </button>
+                <button id="download-ob-button" class="bg-gradient-to-r from-blue-600 to-indigo-700 text-white font-bold py-3 px-5 rounded-xl text-base transition-all duration-200 disabled:from-slate-300 disabled:to-slate-400 disabled:cursor-not-allowed hover-lift" disabled>
+                    📂 공정별 엑셀 저장
+                </button>
+                <button id="save-backup-button" class="bg-gradient-to-r from-purple-500 to-pink-600 text-white font-bold py-3 px-5 rounded-xl text-base transition-all duration-200 hover-lift">
+                    💾 백업 저장
+                </button>
+                <button id="load-backup-button" class="bg-gradient-to-r from-pink-500 to-rose-600 text-white font-bold py-3 px-5 rounded-xl text-base transition-all duration-200 hover-lift">
+                    📂 백업 불러오기
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="fixed top-4 right-4 z-50 flex gap-2">
+        <button id="tour-start-button" class="glass-morphism p-3 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-200 group" title="도움말">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-600 group-hover:text-blue-800 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+        </button>
+        <button id="admin-toggle-button" class="glass-morphism p-3 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-200 group">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-slate-700 group-hover:text-slate-900 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+        </button>
+    </div>
+
+    <!-- 투어 가이드 -->
+    <div id="tour-overlay" class="tour-overlay hidden"></div>
+    <div id="tour-highlight" class="tour-highlight hidden"></div>
+    <div id="tour-tooltip" class="tour-tooltip hidden">
+        <div id="tour-tooltip-arrow" class="tour-tooltip-arrow"></div>
+        <div class="flex items-center gap-3 mb-3">
+            <span id="tour-step-badge" class="flex-shrink-0 w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold text-sm"></span>
+            <h3 id="tour-title" class="text-lg font-bold text-slate-800"></h3>
+        </div>
+        <p id="tour-description" class="text-slate-600 text-sm leading-relaxed mb-4"></p>
+        <div class="flex items-center justify-between">
+            <span id="tour-progress" class="text-xs text-slate-400"></span>
+            <div class="flex gap-2">
+                <button id="tour-skip-btn" class="px-4 py-2 text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors">건너뛰기</button>
+                <button id="tour-next-btn" class="px-5 py-2 bg-blue-500 text-white text-sm font-bold rounded-lg hover:bg-blue-600 transition-colors"></button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="display-view" class="w-full h-screen flex flex-col items-center justify-start p-0">
+        <div id="ticker-container" class="w-full bg-gradient-to-r from-yellow-400 to-amber-500 text-black font-bold text-2xl overflow-hidden hidden flex items-center justify-center h-16 shadow-lg">
+            <span id="ticker-text"></span>
+        </div>
+
+        <div class="w-full flex-grow flex items-center justify-center p-6">
+            <div id="welcome-message" class="text-center">
+                <div id="clock-container" class="my-8">
+                    <p id="current-date" class="text-4xl sm:text-5xl font-semibold text-slate-700 mb-3"></p>
+                    <p id="current-time" class="text-8xl sm:text-9xl font-black bg-gradient-to-r from-yellow-400 to-amber-500 bg-clip-text text-transparent tracking-wider leading-none"></p>
+                </div>
+                <img src="https://i.postimg.cc/m2qfm2fc/cfssaebeock.png" alt="공정 안내 캐릭터" class="w-64 sm:w-80 mx-auto mb-10">
+                <h2 class="text-4xl sm:text-5xl font-bold text-slate-700 mb-8">GWJ2 / GWJ5 센터에 오신 것을 환영합니다</h2>
+                <div class="space-y-5 text-xl sm:text-2xl text-slate-600">
+                    <p class="flex items-center justify-center gap-3">
+                        <span class="text-3xl">✅</span>
+                        <span>본인의 공정을 확인하기 위해 <strong class="text-blue-600">쿠코드</strong>를 스캔해주세요</span>
+                    </p>
+                    <p class="flex items-center justify-center gap-3">
+                        <span class="text-3xl">🚨</span>
+                        <span>문의사항이 있으시다면 HR 혹은 공정관리자님께 문의해주세요</span>
+                    </p>
+                </div>
+            </div>
+            
+            <div id="result-card" class="w-full max-w-[1700px] aspect-[18/9] bg-white rounded-3xl shadow-2xl flex overflow-hidden transition-transform duration-500 scale-0 hidden">
+                <!-- 좌측 컬러바 -->
+                <div id="color-bar" class="h-full transition-colors duration-500 flex items-center justify-center relative" style="width: 18%;">
+                    <div class="text-white text-9xl font-black opacity-20 gentle-bounce">→</div>
+                </div>
+                
+                <!-- 우측 메인 콘텐츠 -->
+                <div class="flex-1 h-full flex">
+                    <div class="h-full p-10 flex flex-col justify-center space-y-8" style="width: 52%;">
+                        <!-- 센터/공정 -->
+                        <div class="animate-slide-in" style="animation-delay: 0.05s;">
+                            <p class="text-3xl font-semibold text-slate-500 mb-2">센터 / 공정</p>
+                            <p id="result-process" class="text-7xl font-black transition-colors duration-500 leading-tight"></p>
+                        </div>
+
+                        <!-- 성함 -->
+                        <div class="animate-slide-in" style="animation-delay: 0.1s;">
+                            <p class="text-3xl font-semibold text-slate-500 mb-2">성함</p>
+                            <p id="result-name" class="text-7xl font-black text-slate-800 leading-tight"></p>
+                        </div>
+
+                        <!-- 이동 층 (강조) -->
+                        <div class="animate-slide-in bg-gradient-to-r from-slate-50 to-white rounded-2xl p-8 border-l-8 transition-colors duration-500" style="animation-delay: 0.15s; border-color: inherit;">
+                            <div class="flex items-center gap-4 mb-3">
+                                <span class="text-5xl">🎯</span>
+                                <p class="text-4xl font-bold text-slate-700">이동 층</p>
+                            </div>
+                            <p id="result-floor" class="text-9xl font-black transition-colors duration-500 leading-none"></p>
+                        </div>
+                    </div>
+
+                    <div id="result-location-panel" class="h-full p-6 bg-slate-100/90 border-l border-slate-200 flex flex-col" style="width: 48%;">
+                        <div class="mb-3">
+                            <p class="text-sm font-semibold text-slate-500 uppercase tracking-[0.2em]">집합 장소 안내</p>
+                            <p id="result-location-caption" class="text-2xl font-bold text-slate-800 mt-2">이미지 준비중</p>
+                        </div>
+
+                        <div class="flex-1 min-h-0 rounded-3xl overflow-hidden bg-white shadow-lg border border-slate-200 flex items-center justify-center relative">
+                            <img id="result-location-image" alt="집합 장소 안내 이미지" class="w-full h-full object-cover hidden">
+                            <div id="result-location-fallback" class="absolute inset-0 flex flex-col items-center justify-center text-center px-8 bg-gradient-to-br from-slate-50 to-slate-100">
+                                <div class="text-6xl mb-4">🖼️</div>
+                                <p class="text-2xl font-bold text-slate-700 mb-3">이미지 주소를 넣으면 여기에 표시됩니다</p>
+                                <p id="result-location-fallback-text" class="text-lg text-slate-500 leading-relaxed"></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="not-found-card" class="w-full max-w-7xl aspect-[18/9] bg-gradient-to-br from-orange-50 to-amber-50 rounded-3xl shadow-2xl flex flex-col items-center justify-center text-center p-10 border-4 border-orange-400 transition-transform duration-500 scale-0 hidden">
+                <div class="space-y-8">
+                    <!-- 아이콘 -->
+                    <div class="gentle-bounce">
+                        <div class="text-9xl">🚨</div>
+                    </div>
+                    
+                    <!-- 타이틀 -->
+                    <div class="animate-slide-in" style="animation-delay: 0.05s;">
+                        <div class="inline-block px-8 py-3 bg-orange-600 text-white rounded-full text-2xl font-bold shadow-lg mb-4">
+                            공정 이동 안내
+                        </div>
+                    </div>
+                    
+                    <!-- 메인 질문 -->
+                    <div class="animate-fade-in bg-white/90 rounded-3xl p-8 shadow-xl" style="animation-delay: 0.1s;">
+                        <p class="text-5xl font-bold text-slate-800 mb-6 leading-tight">
+                            혹시 <span class="text-orange-600 font-black">HUB</span> 공정으로<br>배정받으셨나요?
+                        </p>
+                        <div class="h-1 w-32 bg-gradient-to-r from-transparent via-orange-400 to-transparent mx-auto my-6"></div>
+                    </div>
+                    
+                    <!-- 이동 안내 -->
+                    <div class="animate-slide-in bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-2xl p-10 shadow-xl" style="animation-delay: 0.15s;">
+                        <p class="text-8xl font-black mb-2">1-1층으로</p>
+                        <p class="text-6xl font-black">이동해주세요</p>
+                    </div>
+                    
+                    <!-- 추가 안내 -->
+                    <div class="animate-fade-in text-lg text-slate-600" style="animation-delay: 0.2s;">
+                        <p>HUB 공정이 아닌 경우, <span class="font-bold text-orange-600">4층 식당</span>으로 이동하시거나</p>
+                        <p class="font-bold">관리자에게 문의해주세요</p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="duplicate-card" class="w-full max-w-7xl aspect-[18/9] bg-gradient-to-br from-purple-50 to-violet-50 rounded-3xl shadow-2xl flex flex-col items-center justify-center text-center p-10 border-4 border-purple-400 transition-transform duration-500 scale-0 hidden">
+                <div class="space-y-8">
+                    <!-- 아이콘 -->
+                    <div class="gentle-bounce">
+                        <div class="text-9xl">🚨</div>
+                    </div>
+                    
+                    <!-- 타이틀 -->
+                    <div class="animate-slide-in" style="animation-delay: 0.05s;">
+                        <div class="inline-block px-8 py-3 bg-purple-600 text-white rounded-full text-2xl font-bold shadow-lg">
+                            중복 감지
+                        </div>
+                    </div>
+                    
+                    <!-- 메인 메시지 -->
+                    <div class="animate-fade-in bg-white/90 rounded-3xl p-10 shadow-xl" style="animation-delay: 0.1s;">
+                        <p class="text-6xl font-black text-slate-800 mb-4">
+                            쿠코드 <span class="text-purple-600">중복</span> 인원
+                        </p>
+                        <div class="h-1 w-32 bg-gradient-to-r from-transparent via-purple-400 to-transparent mx-auto my-6"></div>
+                        <p class="text-3xl font-bold text-slate-600 leading-relaxed">
+                            동일한 쿠코드가<br>2명 이상 등록되어 있습니다
+                        </p>
+                    </div>
+                    
+                    <!-- 안내 -->
+                    <div class="animate-slide-in bg-gradient-to-r from-purple-500 to-violet-600 text-white rounded-2xl p-8 shadow-xl" style="animation-delay: 0.15s;">
+                        <p class="text-5xl font-black mb-2">👤 공정 관리자님께</p>
+                        <p class="text-5xl font-black">문의해주세요</p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="newbie-card" class="w-full max-w-7xl aspect-[18/9] bg-gradient-to-br from-green-50 to-emerald-50 rounded-3xl shadow-2xl flex flex-col items-center justify-center text-center p-10 border-4 border-green-400 transition-transform duration-500 scale-0 hidden">
+                <div class="space-y-8">
+                    <!-- 아이콘 -->
+                    <div class="gentle-bounce">
+                        <div class="text-9xl">👋</div>
+                    </div>
+                    
+                    <!-- 환영 메시지 -->
+                    <div class="animate-slide-in" style="animation-delay: 0.05s;">
+                        <div class="inline-block px-10 py-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-full text-3xl font-black shadow-xl">
+                            🌟 신규 사원님 환영합니다! 🌟
+                        </div>
+                    </div>
+                    
+                    <!-- 이동 안내 -->
+                    <div class="animate-fade-in bg-white/90 rounded-3xl p-8 shadow-xl" style="animation-delay: 0.1s;">
+                        <p class="text-3xl font-bold text-slate-700 mb-4">신규 교육을 위해</p>
+                        <div class="bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-2xl p-10 my-4 shadow-lg">
+                            <p class="text-9xl font-black mb-2">5층</p>
+                            <p class="text-6xl font-black">신규교육장으로</p>
+                            <p class="text-5xl font-black mt-2">이동해주세요</p>
+                        </div>
+                    </div>
+                    
+                    <!-- 교육 순서 -->
+                    <div class="animate-slide-in bg-green-100/80 rounded-2xl p-6 border-2 border-green-300" style="animation-delay: 0.15s;">
+                        <div class="flex items-center justify-center gap-3 mb-4">
+                            <span class="text-3xl">📚</span>
+                            <p class="text-2xl font-bold text-green-800">교육 순서</p>
+                            <span class="text-3xl">📚</span>
+                        </div>
+                        <div class="space-y-2 text-xl text-slate-700">
+                            <p><span class="font-black text-green-600">1.</span> 5층 신규교육장 이동</p>
+                            <p><span class="font-black text-green-600">2.</span> 신규 교육 이수</p>
+                            <p><span class="font-black text-green-600">3.</span> 배정된 공정으로 이동</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="manual-input-area" class="w-full max-w-lg p-4 glass-morphism rounded-2xl shadow-lg mb-4">
+            <div class="flex gap-3">
+                <input type="text" id="kucode-input" placeholder="쿠코드를 여기에 입력하세요..." class="w-full px-5 py-4 bg-white/80 rounded-xl border-2 border-white/30 text-xl focus:outline-none focus:border-blue-500 focus:bg-white transition-all duration-200" autofocus>
+                <button id="submit-button" class="bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white font-bold py-4 px-8 rounded-xl text-xl transition-all duration-200 hover-lift">입력</button>
+            </div>
+            <p id="scanner-status" class="mt-3 text-center text-sm font-medium text-slate-600">자동 스캔 대기중</p>
+        </div>
+    </div>
+    
+    <audio id="success-sound" preload="auto"></audio>
+    <audio id="alert-sound" preload="auto"></audio>
+
+<script>
+    // --- DOM 요소 ---
+    const setupView = document.getElementById('setup-view');
+    const displayView = document.getElementById('display-view');
+    const excelFileInput2 = document.getElementById('excel-file-input-2');
+    const fileStatus2 = document.getElementById('file-status-2');
+    const excelFileInput5 = document.getElementById('excel-file-input-5');
+    const fileStatus5 = document.getElementById('file-status-5');
+    const backlogInput61 = document.getElementById('backlog-61');
+    const backlogInput72 = document.getElementById('backlog-72');
+    const backlogInput73 = document.getElementById('backlog-73');
+    const processButton = document.getElementById('process-button');
+    const processButtonText = document.getElementById('process-button-text');
+    const testModeButton = document.getElementById('test-mode-button');
+    const obSummary = document.getElementById('ob-summary');
+    const obSummaryTitle = document.getElementById('ob-summary-title');
+    const obSummaryContent = document.getElementById('ob-summary-content');
+    const kucodeInput = document.getElementById('kucode-input');
+    const submitButton = document.getElementById('submit-button');
+    const scannerStatus = document.getElementById('scanner-status');
+    const resultCard = document.getElementById('result-card');
+    const colorBar = document.getElementById('color-bar');
+    const resultProcess = document.getElementById('result-process');
+    const resultName = document.getElementById('result-name');
+    const resultFloor = document.getElementById('result-floor');
+    const resultLocationImage = document.getElementById('result-location-image');
+    const resultLocationCaption = document.getElementById('result-location-caption');
+    const resultLocationFallback = document.getElementById('result-location-fallback');
+    const resultLocationFallbackText = document.getElementById('result-location-fallback-text');
+    const welcomeMessage = document.getElementById('welcome-message');
+    const announcementInput = document.getElementById('announcement-input');
+    const tickerContainer = document.getElementById('ticker-container');
+    const tickerText = document.getElementById('ticker-text');
+    const adminToggleButton = document.getElementById('admin-toggle-button');
+    const notFoundCard = document.getElementById('not-found-card');
+    const duplicateCard = document.getElementById('duplicate-card');
+    const newbieCard = document.getElementById('newbie-card');
+    const currentDateEl = document.getElementById('current-date');
+    const currentTimeEl = document.getElementById('current-time');
+    const downloadObButton = document.getElementById('download-ob-button');
+    const manualOverrideSection = document.getElementById('manual-override-section');
+    const overrideKucode = document.getElementById('override-kucode-input');
+    const overrideProcessSelect = document.getElementById('override-process-select');
+    const overrideFloorSelect = document.getElementById('override-floor-select');
+    const overrideApplyBtn = document.getElementById('override-apply-button');
+    const overrideList = document.getElementById('override-list');
+    
+    // 새로 추가된 요소들
+    const statsPanel = document.getElementById('stats-panel');
+    const scannedCountEl = document.getElementById('scanned-count');
+    const totalCountEl = document.getElementById('total-count');
+    const progressBar = document.getElementById('progress-bar');
+    const progressPercent = document.getElementById('progress-percent');
+    const showMissingBtn = document.getElementById('show-missing-btn');
+    const missingModal = document.getElementById('missing-modal');
+    const closeMissingModal = document.getElementById('close-missing-modal');
+    const missingList = document.getElementById('missing-list');
+    const saveBackupBtn = document.getElementById('save-backup-button');
+    const loadBackupBtn = document.getElementById('load-backup-button');
+
+    // 인원 추가 요소들
+    const addEmployeeSection = document.getElementById('add-employee-section');
+    const addBulkInput = document.getElementById('add-bulk-input');
+    const addCenterSelect = document.getElementById('add-center-select');
+    const addProcessSelect = document.getElementById('add-process-select');
+    const addFloorSelect = document.getElementById('add-floor-select');
+    const addEmployeeBtn = document.getElementById('add-employee-button');
+    const addedEmployeeList = document.getElementById('added-employee-list');
+
+    // 음성 안내 요소들 (동적 슬롯)
+    const voiceEnabled = document.getElementById('voice-enabled');
+    const voiceSlotsContainer = document.getElementById('voice-slots');
+    const voiceAddBtn = document.getElementById('voice-add-btn');
+
+    // 집합 장소 이미지 요소들
+    const imgCenterSelect = document.getElementById('img-center-select');
+    const imgProcessSelect = document.getElementById('img-process-select');
+    const imgFloorSelect = document.getElementById('img-floor-select');
+    const imgFileInput = document.getElementById('img-file-input');
+    const imgPreview = document.getElementById('img-preview');
+    const imgApplyBtn = document.getElementById('img-apply-button');
+    const imgList = document.getElementById('img-list');
+
+    // 실시간 연동 요소들 (항상 자동 연동 — 토글 없음)
+    const syncStatusBadge = document.getElementById('sync-status-badge');
+    const syncInfo = document.getElementById('sync-info');
+
+    // 잠금 비밀번호 설정 요소
+    const unlockPassSetting = document.getElementById('unlock-pass-setting');
+    const unlockPassSave = document.getElementById('unlock-pass-save');
+
+    // 설정 탭 / 인원관리 힌트
+    const settingsTabs = Array.from(document.querySelectorAll('.settings-tab'));
+    const settingsPanels = Array.from(document.querySelectorAll('.settings-panel'));
+    const peopleEmptyHint = document.getElementById('people-empty-hint');
+
+	// 잠금 해제 모달 요소들
+    const unlockModal = document.getElementById('unlock-modal');
+    const closeUnlockModal = document.getElementById('close-unlock-modal');
+    const unlockPasswordInput = document.getElementById('unlock-password-input');
+    const unlockSubmitBtn = document.getElementById('unlock-submit-btn');
+    const unlockCancelBtn = document.getElementById('unlock-cancel-btn');
+    const unlockError = document.getElementById('unlock-error');
+
+    // --- 데이터 저장소 (쿠코드 기반으로 변경) ---
+    let center2Data = [];
+    let center5Data = [];
+    let employeeData = [];
+    let processedEmployees = [];
+    let assignments = new Map(); // 쿠코드 -> 직원정보
+    let resultTimer = null;
+    let announcementInterval = null;
+    let duplicateKucodes = new Set(); // 중복 쿠코드
+    let processOverrides = new Map(); // 쿠코드 -> 수동변경정보
+    let scannedEmployees = new Set(); // 스캔된 쿠코드들
+	let isProcessButtonLocked = false; // 버튼 잠금 상태
+    let scannerBuffer = '';
+    let scannerBufferTimer = null;
+    let wakeLockSentinel = null;
+    let wakeLockRequestPending = false;
+    let wakeLockError = '';
+
+    // 음성/이미지/연동 상태
+    let voiceSlots = [];          // [{ src(base64), fileName, interval(분), audio(Audio), timer }]
+    let audioUnlocked = false;
+    let locationImages = {};       // '센터|공정[|층]' -> base64 dataURL (코드 기본값 오버라이드)
+    let firebaseApp = null;
+    let firebaseDb = null;
+    let syncRef = null;            // assignments 노드 ref
+    let syncScanRef = null;        // scanned 노드 ref
+    let isApplyingRemote = false;  // 원격 적용 중 에코 방지
+    let syncPushTimer = null;
+    const CLIENT_ID = Math.random().toString(36).slice(2) + Date.now().toString(36);
+
+    // --- 설정값 ---
+    const PROCESS_INFO = {
+        'OB':       { floor: null, color: '#dc2626', lightColor: '#fee2e2', name: 'OB' },
+        'IB':       { floor: '7-1층', color: '#2563eb', lightColor: '#dbeafe', name: 'IB' },
+        '시설관리': { floor: '7-1층', color: '#a16207', lightColor: '#fef3c7', name: '시설관리' },
+        'HUB':      { floor: '1-1층', color: '#f97316', lightColor: '#ffedd5', name: 'HUB' },
+        'CFC OB':   { floor: '6-2층', color: '#dc2626', lightColor: '#fee2e2', name: 'CFC OB' },
+        'CFC IB':   { floor: '6-2층', color: '#2563eb', lightColor: '#dbeafe', name: 'CFC IB' },
+        'ICQA':     { floor: '7-2층', color: '#6b7280', lightColor: '#f3f4f6', name: 'ICQA' },
+        'DEFAULT':  { floor: '미지정', color: '#16a34a', lightColor: '#dcfce7', name: '미지정' }
+    };
+    const OB_MAN_FLOOR = '1-3층';
+    const OB_WOMAN_FLOORS = ['6-1층', '7-2층', '7-3층'];
+    // 수동 추가/변경/이미지에서 공통으로 쓰는 층 목록 (하이픈 표기로 통일)
+    const ALL_FLOORS = ['1-1층', '1-2층', '1-3층', '4-1층', '6-1층', '6-2층', '6-3층', '7-1층', '7-2층', '7-3층', '8F'];
+
+    // Firebase(Firestore) 실시간 연동 설정.
+    // projectId가 비어 있으면 연동은 자동 비활성화되고 기존처럼 오프라인으로 동작합니다.
+    const FIREBASE_CONFIG = {
+        apiKey: "AIzaSyB2JZMO5hibv2Vv8T7PIE9SYRKcRQoL0FQ",
+        authDomain: "gwj25information.firebaseapp.com",
+        projectId: "gwj25information",
+        storageBucket: "gwj25information.firebasestorage.app",
+        messagingSenderId: "1012255076339",
+        appId: "1:1012255076339:web:78d2571950076f888f6c86"
+    };
+    // 모든 PC가 공유하는 고정 경로(방 코드 없이 전체 연동)
+    const SYNC_DOC = 'gwj_sync/state';
+    const SYNC_SCAN_DOC = 'gwj_sync/scanned';
+
+    const FIXED_ANNOUNCEMENTS = [
+        "🚨 사원님들께서는 19시 이전까지 해당 이동 장소로 도착해주시기 바랍니다.",
+        "🚨 신규 사원님들은 5층 로비 신규교육장으로 이동해주시기 바랍니다."
+    ];
+    // [이미지 주소 넣는 곳]
+    // 아래 빈 문자열 '' 자리에 실제 이미지 주소를 넣어주세요.
+    // 1순위 키 형식: '센터|공정|층'
+    // 2순위 키 형식: '센터|공정'
+    // 예시:
+    // '2센터|OB|1-3층': 'https://example.com/gwj2-ob-13.jpg',
+    // '2센터|OB': 'https://example.com/gwj2-ob-default.jpg',
+    const LOCATION_IMAGE_URLS = {
+        '2센터|OB|1-3층': 'https://www.coupang.jobs/media/llfjam3c/coupang-fulfillment-honam-gwangju-open-local-economy-employment-241014-02-edited-768x576.jpg?width=800&height=600&rmode=crop&quality=85&v=1db28d73848b3d0&hmac=296732a7026ad7788f8482f0312d04ddc0c91dcab61e06227f1d3723a79c29b6',
+        '2센터|OB|6-1층': '',
+        '2센터|OB|7-2층': '',
+        '2센터|OB|7-3층': '',
+        '2센터|OB': '',
+        '2센터|IB': '',
+        '2센터|시설관리': '',
+        '2센터|HUB': '',
+        '2센터|CFC OB': 'data:image/jpeg;base64,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',
+        '2센터|CFC IB': '',
+        '2센터|ICQA': '',
+        '5센터|OB': '',
+        '5센터|IB': '',
+        '5센터|시설관리': '',
+        '5센터|HUB': '',
+        '5센터|CFC OB': '',
+        '5센터|CFC IB': '',
+        '5센터|ICQA': ''
+    };
+	let unlockPassword = "0000";        // 기본 잠금 비밀번호 (설정에서 변경 가능)
+	const MASTER_KEY = "0127";          // 마스터키 (항상 해제, 분실 대비)
+
+    // --- 이벤트 리스너 ---
+    adminToggleButton.addEventListener('click', () => {
+        setupView.classList.toggle('hidden');
+        if (!setupView.classList.contains('hidden')) {
+            loadBackupOnSetup();
+        } else {
+            focusKucodeInput();
+        }
+        updateScannerStatus();
+    });
+    setupView.addEventListener('click', (event) => {
+        if (event.target === setupView) {
+            setupView.classList.add('hidden');
+            focusKucodeInput();
+            updateScannerStatus();
+        }
+    });
+    excelFileInput2.addEventListener('change', (e) => handleFileUpload(e, 2));
+    excelFileInput5.addEventListener('change', (e) => handleFileUpload(e, 5));
+    processButton.addEventListener('click', handleProcessButtonClick);
+    testModeButton.addEventListener('click', startTestMode);
+    downloadObButton.addEventListener('click', downloadObAssignments);
+    kucodeInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            submitKucode();
+        }
+    });
+    submitButton.addEventListener('click', submitKucode);
+    overrideApplyBtn.addEventListener('click', applyProcessOverride);
+    overrideList.addEventListener('click', (event) => {
+        if (event.target.classList.contains('revert-override-btn')) {
+            const kucodeToRevert = event.target.dataset.kucode;
+            revertOverride(kucodeToRevert);
+        }
+    });
+    showMissingBtn.addEventListener('click', showMissingModal);
+    closeMissingModal.addEventListener('click', () => {
+        missingModal.classList.add('hidden');
+        focusKucodeInput();
+        updateScannerStatus();
+    });
+    missingModal.addEventListener('click', (event) => {
+        if (event.target === missingModal) {
+            missingModal.classList.add('hidden');
+            focusKucodeInput();
+            updateScannerStatus();
+        }
+    });
+    saveBackupBtn.addEventListener('click', () => { if (saveBackup(false)) alert('백업이 저장되었습니다.'); });
+    loadBackupBtn.addEventListener('click', loadBackup);
+    // 인원 추가 이벤트
+    addEmployeeBtn.addEventListener('click', addManualEmployee);
+    addedEmployeeList.addEventListener('click', (event) => {
+        if (event.target.classList.contains('remove-added-btn')) {
+            const kucodeToRemove = event.target.dataset.kucode;
+            removeManualEmployee(kucodeToRemove);
+        }
+    });
+
+    // 음성 안내 이벤트 (동적 슬롯 — 이벤트 위임)
+    voiceEnabled.addEventListener('change', () => { primeAudio(); persistDeviceSettings(); applyVoiceTimers(); });
+    voiceAddBtn.addEventListener('click', () => { primeAudio(); addVoiceSlot(); persistDeviceSettings(); });
+    voiceSlotsContainer.addEventListener('change', (event) => {
+        const card = event.target.closest('.voice-slot');
+        if (!card) return;
+        const i = parseInt(card.dataset.idx, 10);
+        if (event.target.classList.contains('voice-file')) {
+            handleVoiceFile(i, event.target.files[0]);
+        } else if (event.target.classList.contains('voice-interval')) {
+            if (voiceSlots[i]) voiceSlots[i].interval = event.target.value;
+            persistDeviceSettings();
+            applyVoiceTimers();
+        }
+    });
+    voiceSlotsContainer.addEventListener('click', (event) => {
+        const card = event.target.closest('.voice-slot');
+        if (!card) return;
+        const i = parseInt(card.dataset.idx, 10);
+        if (event.target.classList.contains('voice-test')) { primeAudio(); playVoiceSlot(i, true); }
+        else if (event.target.classList.contains('voice-remove')) { removeVoiceSlot(i); }
+    });
+
+    // 집합 장소 이미지 이벤트
+    imgFileInput.addEventListener('change', handleImageFilePreview);
+    imgApplyBtn.addEventListener('click', applyLocationImage);
+    imgList.addEventListener('click', (event) => {
+        if (event.target.classList.contains('remove-img-btn')) {
+            removeLocationImage(event.target.dataset.key);
+        }
+    });
+
+    // 잠금 비밀번호 변경
+    unlockPassSave.addEventListener('click', saveUnlockPassword);
+
+    // 설정 탭 전환
+    settingsTabs.forEach(btn => btn.addEventListener('click', () => showSettingsTab(btn.dataset.tab)));
+
+    // 공지 변경 시 연동 전송 + 라이브 갱신
+    announcementInput.addEventListener('change', () => { refreshAnnouncements(); syncPushAssignments(); });
+	// 잠금 해제 모달 이벤트
+    closeUnlockModal.addEventListener('click', closeUnlockModalFunc);
+    unlockCancelBtn.addEventListener('click', closeUnlockModalFunc);
+    unlockSubmitBtn.addEventListener('click', checkUnlockPassword);
+    unlockPasswordInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            checkUnlockPassword();
+        }
+    });
+    unlockModal.addEventListener('click', (event) => {
+        if (event.target === unlockModal) closeUnlockModalFunc();
+    });
+    kucodeInput.addEventListener('blur', () => {
+        setTimeout(() => {
+            if (isScannerModeActive() && !isEditableTarget(document.activeElement)) {
+                focusKucodeInput();
+            }
+        }, 50);
+    });
+    document.addEventListener('keydown', handleGlobalScannerKeydown, true);
+    document.addEventListener('pointerdown', handleScannerPointerDown, true);
+    window.addEventListener('focus', () => {
+        focusKucodeInput();
+        requestWakeLock();
+    });
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    resultLocationImage.addEventListener('error', () => {
+        resultLocationImage.removeAttribute('src');
+        resultLocationImage.classList.add('hidden');
+        resultLocationFallback.classList.remove('hidden');
+        resultLocationFallbackText.textContent = '이미지 주소를 다시 확인해주세요. 주소가 비어 있거나 잘못되면 사진이 표시되지 않습니다.';
+    });
+    resultLocationImage.addEventListener('load', () => {
+        resultLocationFallback.classList.add('hidden');
+    });
+
+    // --- 유틸리티 함수들 ---
+
+    function isEditableTarget(target) {
+        return Boolean(target && typeof target.closest === 'function' && target.closest('input, textarea, select, [contenteditable="true"]'));
+    }
+
+    function isScannerModeActive() {
+        return setupView.classList.contains('hidden') &&
+            missingModal.classList.contains('hidden') &&
+            unlockModal.classList.contains('hidden') &&
+            !tourActive;
+    }
+
+    function resetScannerBuffer(clearInput = false) {
+        scannerBuffer = '';
+        if (scannerBufferTimer) {
+            clearTimeout(scannerBufferTimer);
+            scannerBufferTimer = null;
+        }
+        if (clearInput) {
+            kucodeInput.value = '';
+        }
+    }
+
+    function scheduleScannerBufferReset() {
+        if (scannerBufferTimer) clearTimeout(scannerBufferTimer);
+        scannerBufferTimer = setTimeout(() => {
+            resetScannerBuffer(true);
+            updateScannerStatus();
+        }, 400);
+    }
+
+    function updateScannerStatus() {
+        if (!scannerStatus) return;
+
+        if (!isScannerModeActive()) {
+            scannerStatus.textContent = '관리자 설정 화면 사용 중';
+            return;
+        }
+
+        const wakeLockText = !('wakeLock' in navigator)
+            ? '브라우저 절전 방지 미지원'
+            : wakeLockSentinel
+                ? '화면 절전 방지 요청 중'
+                : wakeLockError
+                    ? '화면 절전 방지 재시도 대기 중'
+                    : '화면 절전 방지 확인 중';
+
+        scannerStatus.textContent = `자동 스캔 대기중 | 입력창 클릭 없이 스캔 가능 | ${wakeLockText}`;
+    }
+
+    async function requestWakeLock() {
+        if (!('wakeLock' in navigator) || wakeLockSentinel || wakeLockRequestPending || !isScannerModeActive() || document.visibilityState !== 'visible') {
+            updateScannerStatus();
+            return;
+        }
+
+        wakeLockRequestPending = true;
+        wakeLockError = '';
+
+        try {
+            wakeLockSentinel = await navigator.wakeLock.request('screen');
+            wakeLockSentinel.addEventListener('release', () => {
+                wakeLockSentinel = null;
+                updateScannerStatus();
+                if (document.visibilityState === 'visible' && isScannerModeActive()) {
+                    requestWakeLock();
+                }
+            });
+        } catch (error) {
+            wakeLockError = error?.name || 'wake-lock-error';
+            console.warn('화면 절전 방지 요청 실패:', error);
+        } finally {
+            wakeLockRequestPending = false;
+            updateScannerStatus();
+        }
+    }
+
+    function focusKucodeInput() {
+        if (!isScannerModeActive()) {
+            updateScannerStatus();
+            return;
+        }
+        kucodeInput.focus({ preventScroll: true });
+        requestWakeLock();
+        updateScannerStatus();
+    }
+
+    function handleScannerPointerDown(event) {
+        if (!isScannerModeActive()) return;
+        if (event.target && typeof event.target.closest === 'function' && event.target.closest('#setup-view, #missing-modal, #unlock-modal, #tour-tooltip')) {
+            return;
+        }
+        primeAudio();
+        requestWakeLock();
+        setTimeout(() => focusKucodeInput(), 0);
+    }
+
+    function handleGlobalScannerKeydown(event) {
+        if (!isScannerModeActive()) return;
+        if (event.target === kucodeInput) return;
+        if (isEditableTarget(event.target)) return;
+
+        if (event.key === 'Enter') {
+            if (!scannerBuffer) return;
+            event.preventDefault();
+            kucodeInput.value = scannerBuffer;
+            submitKucode();
+            resetScannerBuffer(true);
+            return;
+        }
+
+        if (event.key === 'Backspace') {
+            if (!scannerBuffer) return;
+            event.preventDefault();
+            scannerBuffer = scannerBuffer.slice(0, -1);
+            kucodeInput.value = scannerBuffer;
+            scheduleScannerBufferReset();
+            return;
+        }
+
+        if (/^[0-9a-zA-Z-]$/.test(event.key)) {
+            event.preventDefault();
+            scannerBuffer += event.key.toUpperCase();
+            kucodeInput.value = scannerBuffer;
+            scheduleScannerBufferReset();
+            updateScannerStatus();
+        }
+    }
+
+    function handleVisibilityChange() {
+        if (document.visibilityState === 'visible') {
+            focusKucodeInput();
+            requestWakeLock();
+        } else {
+            updateScannerStatus();
+        }
+    }
+
+	// --- 잠금 관련 함수들 ---
+    
+    function handleProcessButtonClick() {
+        if (isProcessButtonLocked) {
+            showUnlockModal();
+        } else {
+            processAndStart();
+        }
+    }
+    
+    function showUnlockModal() {
+        unlockModal.classList.remove('hidden');
+        unlockPasswordInput.value = '';
+        unlockError.classList.add('hidden');
+        updateScannerStatus();
+        setTimeout(() => unlockPasswordInput.focus(), 100);
+    }
+    
+    function closeUnlockModalFunc() {
+        unlockModal.classList.add('hidden');
+        unlockPasswordInput.value = '';
+        unlockError.classList.add('hidden');
+        focusKucodeInput();
+        updateScannerStatus();
+    }
+    
+    function checkUnlockPassword() {
+        const password = unlockPasswordInput.value;
+        if (password === unlockPassword || password === MASTER_KEY) {
+            unlockProcessButton();
+            closeUnlockModalFunc();
+            alert('버튼 잠금이 해제되었습니다.');
+        } else {
+            unlockError.classList.remove('hidden');
+            unlockPasswordInput.value = '';
+            unlockPasswordInput.focus();
+        }
+    }
+    
+    function lockProcessButton() {
+        isProcessButtonLocked = true;
+        processButton.classList.add('button-locked');
+        processButton.classList.remove('from-emerald-500', 'to-green-600');
+        processButton.classList.add('from-amber-500', 'to-orange-600');
+        processButtonText.textContent = '잠금 해제 필요';
+        
+        localStorage.setItem('gwj_button_locked', 'true');
+    }
+    
+    function unlockProcessButton() {
+        isProcessButtonLocked = false;
+        processButton.classList.remove('button-locked');
+        processButton.classList.remove('from-amber-500', 'to-orange-600');
+        processButton.classList.add('from-emerald-500', 'to-green-600');
+        processButtonText.textContent = '인원 배정하기';
+        
+        localStorage.removeItem('gwj_button_locked');
+    }
+    
+    function playSuccessSound() {
+        try {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.value = 800;
+            gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+            gainNode.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + 0.01);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.5);
+        } catch (e) {
+            console.log('사운드 재생 실패');
+        }
+    }
+    
+    function playAlertSound() {
+        try {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.value = 400;
+            gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+            gainNode.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + 0.01);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.7);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.7);
+        } catch (e) {
+            console.log('사운드 재생 실패');
+        }
+    }
+    
+    function updateClock() {
+        const now = new Date();
+        const dateOptions = { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' };
+        currentDateEl.textContent = now.toLocaleDateString('ko-KR', dateOptions);
+
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        const seconds = String(now.getSeconds()).padStart(2, '0');
+        currentTimeEl.textContent = `${hours}:${minutes}:${seconds}`;
+    }
+
+    function updateStats() {
+        const scannedCount = scannedEmployees.size;
+        const totalCount = processedEmployees.length;
+        const progressPercentValue = totalCount > 0 ? Math.round((scannedCount / totalCount) * 100) : 0;
+        
+        scannedCountEl.textContent = scannedCount;
+        totalCountEl.textContent = totalCount;
+        progressBar.style.width = `${progressPercentValue}%`;
+        progressPercent.textContent = `${progressPercentValue}%`;
+        
+        // 통계 패널 표시
+        if (totalCount > 0) {
+            statsPanel.classList.remove('hidden');
+        } else {
+            statsPanel.classList.add('hidden');
+        }
+    }
+
+    function showMissingModal() {
+        const missingEmployees = processedEmployees.filter(emp => !scannedEmployees.has(emp.kucode));
+        
+        if (missingEmployees.length === 0) {
+            missingList.innerHTML = '<div class="text-center py-8 text-green-600"><p class="text-xl font-bold">🎉 모든 인원이 스캔 완료되었습니다!</p></div>';
+        } else {
+            // 공정별로 그룹화
+            const groupedByProcess = {};
+            missingEmployees.forEach(emp => {
+                if (!groupedByProcess[emp.process]) {
+                    groupedByProcess[emp.process] = [];
+                }
+                groupedByProcess[emp.process].push(emp);
+            });
+            
+            let html = '';
+            Object.entries(groupedByProcess).forEach(([process, employees]) => {
+                const processInfo = Object.values(PROCESS_INFO).find(p => p.name === process) || PROCESS_INFO.DEFAULT;
+                html += `
+                    <div class="mb-6">
+                        <h3 class="text-lg font-bold mb-3 px-4 py-2 rounded-lg" style="background-color: ${processInfo.lightColor}; color: ${processInfo.color};">
+                            ${process} (${employees.length}명)
+                        </h3>
+                        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                            ${employees.map(emp => `
+                                <div class="bg-slate-50 p-3 rounded-lg text-center">
+                                    <div class="font-semibold text-slate-700">${emp.originalName}</div>
+                                    <div class="text-sm text-slate-500">${emp.center}</div>
+                                    <div class="text-xs text-slate-400">${emp.floor}</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            });
+            missingList.innerHTML = html;
+        }
+        
+        missingModal.classList.remove('hidden');
+        updateScannerStatus();
+    }
+
+    // --- 백업/복원 함수들 ---
+    
+    function saveBackup(silent = true) {
+        const core = {
+            center2Data,
+            center5Data,
+            employeeData,
+            processedEmployees,
+            assignments: Array.from(assignments.entries()),
+            duplicateKucodes: Array.from(duplicateKucodes),
+            processOverrides: Array.from(processOverrides.entries()),
+            scannedEmployees: Array.from(scannedEmployees),
+            backlogValues: {
+                backlog61: backlogInput61.value,
+                backlog72: backlogInput72.value,
+                backlog73: backlogInput73.value
+            },
+            announcement: announcementInput.value,
+            isProcessButtonLocked,
+            timestamp: new Date().toISOString()
+        };
+
+        try {
+            // 이미지 포함하여 저장 시도
+            localStorage.setItem('gwj_backup_kucode', JSON.stringify({ ...core, locationImages }));
+            return true;
+        } catch (error) {
+            // 용량 초과 등 → 이미지 제외하고 재시도(배정 데이터 우선 보존)
+            try {
+                localStorage.setItem('gwj_backup_kucode', JSON.stringify(core));
+                return true;
+            } catch (error2) {
+                console.error('백업 저장 실패:', error2);
+                if (!silent) alert('백업 저장에 실패했습니다.');
+                return false;
+            }
+        }
+    }
+
+    function loadBackup() {
+        try {
+            const backupData = localStorage.getItem('gwj_backup_kucode');
+            if (!backupData) {
+                alert('저장된 백업이 없습니다.');
+                return;
+            }
+            
+            const data = JSON.parse(backupData);
+            const backupDate = new Date(data.timestamp).toLocaleString('ko-KR');
+            
+            if (!confirm(`${backupDate}에 저장된 백업을 불러오시겠습니까?`)) {
+                return;
+            }
+            
+            // 데이터 복원
+            center2Data = data.center2Data || [];
+            center5Data = data.center5Data || [];
+            employeeData = data.employeeData || [];
+            processedEmployees = data.processedEmployees || [];
+            assignments = new Map(data.assignments || []);
+            duplicateKucodes = new Set(data.duplicateKucodes || []);
+            processOverrides = new Map(data.processOverrides || []);
+            scannedEmployees = new Set(data.scannedEmployees || []);
+            if (data.locationImages) {
+                locationImages = data.locationImages;
+                updateImageListDisplay();
+                persistDeviceSettings();
+            }
+            // 잠금 상태 복원
+            if (data.isProcessButtonLocked) {
+                lockProcessButton();
+            } else {
+                unlockProcessButton();
+            }
+			
+            // UI 복원
+            if (data.backlogValues) {
+                backlogInput61.value = data.backlogValues.backlog61 || '';
+                backlogInput72.value = data.backlogValues.backlog72 || '';
+                backlogInput73.value = data.backlogValues.backlog73 || '';
+            }
+            announcementInput.value = data.announcement || '';
+            
+            // 상태 업데이트
+            fileStatus2.textContent = center2Data.length > 0 ? `✅ ${center2Data.length}명 데이터 로드 완료.` : '';
+            fileStatus5.textContent = center5Data.length > 0 ? `✅ ${center5Data.length}명 데이터 로드 완료.` : '';
+            
+            checkFilesLoaded();
+            
+            if (processedEmployees.length > 0) {
+                downloadObButton.disabled = false;
+                revealManagementSections();
+                updateAddedEmployeesDisplay();
+                displayObSummary();
+                updateOverridesDisplay();
+                updateStats();
+            }
+
+            alert('백업이 복원되었습니다.');
+        } catch (error) {
+            console.error('백업 로드 실패:', error);
+            alert('백업 불러오기에 실패했습니다.');
+        }
+    }
+
+    function loadBackupOnSetup() {
+        // 설정 화면 열 때 자동으로 백업 확인
+        const backupData = localStorage.getItem('gwj_backup_kucode');
+        if (backupData && processedEmployees.length === 0) {
+            try {
+                const data = JSON.parse(backupData);
+                const backupDate = new Date(data.timestamp).toLocaleString('ko-KR');
+                
+                const autoLoadDiv = document.createElement('div');
+                autoLoadDiv.className = 'bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6';
+                autoLoadDiv.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h4 class="font-semibold text-blue-800">저장된 백업 발견</h4>
+                            <p class="text-blue-600 text-sm">${backupDate}에 저장된 데이터가 있습니다.</p>
+                        </div>
+                        <button id="auto-load-backup" class="bg-blue-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-600 transition-colors">
+                            불러오기
+                        </button>
+                    </div>
+                `;
+                
+                document.getElementById('setup-card').insertBefore(autoLoadDiv, document.getElementById('setup-card').firstElementChild.nextElementSibling);
+                
+                document.getElementById('auto-load-backup').addEventListener('click', () => {
+                    loadBackup();
+                    autoLoadDiv.remove();
+                });
+                
+            } catch (error) {
+                console.error('백업 정보 로드 실패:', error);
+            }
+        }
+    }
+
+    // --- 파일 처리 함수들 ---
+    
+    function setLoading(isLoading) {
+        if (isLoading) {
+            processButton.disabled = true;
+            const spinner = document.createElement('div');
+            spinner.className = 'spinner';
+            processButton.prepend(spinner);
+            const tempText = processButtonText.textContent;
+            processButtonText.textContent = '배정 중...';
+            processButtonText.dataset.originalText = tempText;
+        } else {
+            processButton.disabled = false;
+            const spinner = processButton.querySelector('.spinner');
+            if(spinner) spinner.remove();
+            if (processButtonText.dataset.originalText) {
+                processButtonText.textContent = processButtonText.dataset.originalText;
+                delete processButtonText.dataset.originalText;
+            }
+        }
+    }
+    
+    function checkFilesLoaded() {
+        if (center2Data.length > 0 && center5Data.length > 0) {
+            processButton.disabled = false;
+        } else {
+            processButton.disabled = true;
+        }
+    }
+
+    function startTestMode() {
+        center2Data = [
+            { '기존/\n신규': '기존', barcode: '10001', kucode: 'H4759815', name: '베넷', gender: '남', process: 'OB', center: '2센터', status: '기존' },
+            { '기존/\n신규': '기존', barcode: '10002', kucode: 'A1234567', name: '가든', gender: '남', process: 'OB', center: '2센터', status: '기존' },
+            { '기존/\n신규': '신규', barcode: '10003', kucode: 'B2345678', name: '리프', gender: '남', process: 'OB', center: '2센터', status: '신규' },
+            { '기존/\n신규': '기존', barcode: '10004', kucode: 'C3456789', name: '제드', gender: '남', process: 'OB', center: '2센터', status: '기존' },
+            { '기존/\n신규': '신규', barcode: '10005', kucode: 'D4567890', name: '타니', gender: '남', process: 'CFC OB', center: '2센터', status: '신규' },
+            { '기존/\n신규': '기존', barcode: '10006', kucode: 'E5678901', name: '브루스', gender: '남', process: 'OB', center: '2센터', status: '기존' }, 
+            { '기존/\n신규': '기존', barcode: '10007', kucode: 'F6789012', name: '에릭', gender: '남', process: 'OB', center: '2센터', status: '기존' },
+            { '기존/\n신규': '기존', barcode: '10008', kucode: 'G7890123', name: '밤비', gender: '여', process: 'OB', center: '2센터', status: '기존' },
+            { '기존/\n신규': '기존', barcode: '10009', kucode: 'H8901234', name: '윌슨', gender: '남', process: 'OB', center: '2센터', status: '기존' },
+            { '기존/\n신규': '기존', barcode: '10011', kucode: 'J0123456', name: '윈터', gender: '여', process: 'OB', center: '2센터', status: '기존' },
+            { '기존/\n신규': '기존', barcode: '10012', kucode: 'H8901234', name: '앨런', gender: '남', process: 'OB', center: '2센터', status: '기존' },
+        ];
+        center5Data = [
+            { '기존/\n신규': '기존', barcode: '10002', kucode: 'K1234567', name: '이영희', gender: '여', process: 'OB', center: '5센터', status: '기존' },
+            { '기존/\n신규': '신규', barcode: '10004', kucode: 'L2345678', name: '최지우', gender: '여', process: 'IB', center: '5센터', status: '신규' },
+        ];
+        
+        fileStatus2.textContent = `✅ 테스트: ${center2Data.length}명 로드.`;
+        fileStatus5.textContent = `✅ 테스트: ${center5Data.length}명 로드.`;
+        
+        backlogInput61.value = 1500;
+        backlogInput72.value = 5000;
+        backlogInput73.value = 3500;
+
+        if (!announcementInput.value) {
+            announcementInput.value = "※ 안전제일! 작업 중에는 항상 주변을 살피고 | 무리한 작업은 삼가주시기 바랍니다.";
+        }
+        processButton.disabled = false;
+        handleProcessButtonClick();
+    }
+    
+    function handleFileUpload(event, center) {
+        const file = event.target.files[0];
+        const statusEl = center === 2 ? fileStatus2 : fileStatus5;
+        if (!file) {
+            statusEl.textContent = '';
+            if (center === 2) center2Data = []; else center5Data = [];
+            checkFilesLoaded();
+            return;
+        }
+
+        const regex2Center = /(?<!\d)2센터(?![a-zA-Z0-9ㄱ-ㅎㅏ-ㅣ가-힣])/;
+        const regex5Center = /(?<!\d)5센터(?![a-zA-Z0-9ㄱ-ㅎㅏ-ㅣ가-힣])/;
+
+        let detectedCenter = null;
+        if (regex2Center.test(file.name)) {
+            detectedCenter = 2;
+        } else if (regex5Center.test(file.name)) {
+            detectedCenter = 5;
+        }
+
+        if (detectedCenter !== center) {
+            statusEl.textContent = `❌ ${center}센터 파일을 업로드해주세요.`;
+            event.target.value = '';
+            if (center === 2) center2Data = []; else center5Data = [];
+            checkFilesLoaded();
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const data = new Uint8Array(e.target.result);
+                let workbook;
+                
+                // 여러 방법으로 파일 읽기 시도
+                const readMethods = [
+                    () => XLSX.read(data, { type: 'array' }),
+                    () => XLSX.read(data, { type: 'array', password: '1234' }),
+                    () => XLSX.read(data, { type: 'array', password: '1234', cellDates: true }),
+                    () => XLSX.read(e.target.result, { type: 'buffer', password: '1234' }),
+                    () => XLSX.read(data, { type: 'uint8array', password: '1234' })
+                ];
+                
+                let lastError;
+                for (let i = 0; i < readMethods.length; i++) {
+                    try {
+                        workbook = readMethods[i]();
+                        console.log(`파일 읽기 성공 - 방법 ${i + 1}`);
+                        break;
+                    } catch (error) {
+                        lastError = error;
+                        console.log(`방법 ${i + 1} 실패:`, error.message);
+                        continue;
+                    }
+                }
+                
+                if (!workbook) {
+                    throw new Error('password');
+                }
+                
+                const sheetName = "3. Simulation";
+                if (!workbook.Sheets[sheetName]) {
+                    statusEl.textContent = `❌ '${sheetName}' 시트 없음.`;
+                    alert(`오류: 엑셀 파일에서 '${sheetName}' 시트를 찾을 수 없습니다.`);
+                    if (center === 2) center2Data = []; else center5Data = [];
+                    checkFilesLoaded();
+                    return;
+                }
+                const worksheet = workbook.Sheets[sheetName];
+                const parsedData = parseEmployeeDataFromSheet(worksheet, center);
+                if (parsedData === null) {
+                    statusEl.textContent = `❌ 헤더를 찾을 수 없음.`;
+                    if (center === 2) center2Data = []; else center5Data = [];
+                    checkFilesLoaded();
+                    return;
+                }
+
+                if(center === 2) center2Data = parsedData;
+                else center5Data = parsedData;
+                
+                statusEl.textContent = `✅ ${parsedData.length}명 데이터 로드 완료.`;
+                checkFilesLoaded();
+            } catch (error) {
+                console.error("파일 처리 오류:", error);
+                if (error.message.includes("password")) {
+                     statusEl.textContent = '❌ 암호화된 파일 처리 불가';
+                     alert('오류: 암호화된 엑셀 파일을 직접 처리할 수 없습니다.\n\n해결 방법:\n1. 엑셀에서 파일을 열고 암호(1234)를 입력\n2. "다른 이름으로 저장"을 선택\n3. 저장 옵션에서 "암호" 항목을 비워두고 저장\n4. 새로 저장된 파일을 업로드해주세요');
+                } else {
+                     statusEl.textContent = '❌ 파일 처리 중 오류 발생.';
+                     alert('파일을 읽는 중 오류가 발생했습니다. 파일이 손상되었거나 다른 형식일 수 있습니다.');
+                }
+                if (center === 2) center2Data = []; else center5Data = [];
+                checkFilesLoaded();
+            }
+        };
+        reader.readAsArrayBuffer(file);
+    }
+    
+    function parseEmployeeDataFromSheet(worksheet, center) {
+        const data = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
+        
+        // 헤더 찾기
+        let headerRowIndex = -1;
+        let headers = [];
+        for(let i = 0; i < 20; i++) {
+            const row = data[i];
+            if (row && row.includes('이름') && row.includes('원바코드') && row.includes('쿠코드') && row.includes('확정')) {
+                headerRowIndex = i;
+                headers = row;
+                break;
+            }
+        }
+
+        if (headerRowIndex === -1) {
+            alert("'3. Simulation' 시트에서 헤더(이름, 원바코드, 쿠코드, 확정) 행을 찾을 수 없습니다.");
+            return null;
+        }
+
+        // 컬럼 인덱스 찾기
+        const statusHeader = headers.find(h => h && h.includes('기존') && h.includes('신규'));
+        const nameIndex = headers.indexOf('이름');
+        const barcodeIndex = headers.indexOf('원바코드');
+        const kucodeIndex = headers.indexOf('쿠코드');
+        const genderIndex = headers.indexOf('성별');
+        const processIndex = headers.indexOf('확정');
+        const statusIndex = headers.indexOf(statusHeader);
+        
+        if ([nameIndex, barcodeIndex, kucodeIndex, genderIndex, processIndex, statusIndex].includes(undefined) || 
+            [nameIndex, barcodeIndex, kucodeIndex, genderIndex, processIndex, statusIndex].includes(-1)) {
+            alert("엑셀 파일에서 필수 헤더(이름, 원바코드, 쿠코드, 성별, 확정, 기존/신규) 중 일부를 찾을 수 없습니다.");
+            return null;
+        }
+
+        const employeeList = [];
+        for (let i = headerRowIndex + 1; i < data.length; i++) {
+            const row = data[i];
+            const status = String(row[statusIndex] || '').trim();
+            
+            const employee = {
+                barcode: String(row[barcodeIndex] || '').trim(),
+                kucode: String(row[kucodeIndex] || '').trim().toUpperCase(),
+                name: String(row[nameIndex] || '').trim(),
+                gender: String(row[genderIndex] || '').trim(),
+                process: String(row[processIndex] || '').trim().toUpperCase(),
+                center: `${center}센터`,
+                status: status  // 신규/기존 상태 추가
+            };
+            
+            if (employee.kucode && employee.name && employee.gender && employee.process) {
+                employeeList.push(employee);
+            }
+        }
+        return employeeList;
+    }
+
+    function maskName(name) {
+        if (name.length > 2) return name[0] + '*'.repeat(name.length - 2) + name[name.length - 1];
+        if (name.length === 2) return name[0] + '*';
+        return name;
+    }
+
+    // 공정 표시 라벨 — 사원 이해를 돕기 위해 출고/입고 병기 (표시용, 이미지 키 조회에는 사용 안 함)
+    function processLabel(process) {
+        const map = { 'OB': 'OB(출고)', 'IB': 'IB(입고)', 'CFC OB': 'CFC OB(출고)', 'CFC IB': 'CFC IB(입고)' };
+        return map[process] || process;
+    }
+
+    function getLocationImageUrl(center, process, floor) {
+        const floorKey = floor ? `${center}|${process}|${floor}` : '';
+        const processKey = `${center}|${process}`;
+
+        // 1순위: 설정에서 업로드한 이미지(코드 기본값 오버라이드)
+        if (floorKey && locationImages[floorKey]) return locationImages[floorKey];
+        if (locationImages[processKey]) return locationImages[processKey];
+
+        // 2순위: 코드에 박힌 기본 이미지
+        if (floorKey && LOCATION_IMAGE_URLS[floorKey]) {
+            return LOCATION_IMAGE_URLS[floorKey].trim();
+        }
+
+        return (LOCATION_IMAGE_URLS[processKey] || '').trim();
+    }
+
+    function updateResultLocationPanel(assignment) {
+        const imageUrl = getLocationImageUrl(assignment.center, assignment.process, assignment.floor);
+        resultLocationCaption.textContent = `${assignment.center} ${processLabel(assignment.process)} 집합 장소 (${assignment.floor})`;
+
+        if (imageUrl) {
+            resultLocationImage.src = imageUrl;
+            resultLocationImage.classList.remove('hidden');
+            resultLocationFallback.classList.add('hidden');
+        } else {
+            resultLocationImage.removeAttribute('src');
+            resultLocationImage.classList.add('hidden');
+            resultLocationFallback.classList.remove('hidden');
+            resultLocationFallbackText.textContent = `${assignment.center}|${assignment.process}|${assignment.floor} 또는 ${assignment.center}|${assignment.process} 키에 이미지 주소를 넣어주세요.`;
+        }
+    }
+
+    function parseBacklog() {
+        const backlog = new Map();
+        const val61 = parseInt(backlogInput61.value, 10) || 0;
+        const val72 = parseInt(backlogInput72.value, 10) || 0;
+        const val73 = parseInt(backlogInput73.value, 10) || 0;
+        if (val61 === 0 && val72 === 0 && val73 === 0) return null;
+        backlog.set('6-1층', val61);
+        backlog.set('7-2층', val72);
+        backlog.set('7-3층', val73);
+        return backlog;
+    }
+
+    // --- 인원 배정 및 처리 함수들 ---
+    
+    function processAndStart() {
+        setLoading(true);
+        setTimeout(() => {
+            employeeData = [...center2Data, ...center5Data];
+            assignments.clear();
+            duplicateKucodes.clear();
+            processedEmployees = [];
+            processOverrides.clear();
+            scannedEmployees.clear();
+
+            // 쿠코드 중복 체크
+            const kucodeCounts = {};
+            employeeData.forEach(emp => {
+                if (emp.kucode) {
+                    kucodeCounts[emp.kucode] = (kucodeCounts[emp.kucode] || 0) + 1;
+                }
+            });
+            for (const kucode in kucodeCounts) {
+                if (kucodeCounts[kucode] > 1) {
+                    duplicateKucodes.add(kucode);
+                }
+            }
+
+            processedEmployees = employeeData.map(emp => {
+                const info = PROCESS_INFO[emp.process] || PROCESS_INFO['DEFAULT'];
+                let assignedFloor = info.floor;
+
+                if (emp.center === '5센터' && (emp.process === 'OB' || emp.process === 'IB')) {
+                    assignedFloor = '4-1층';
+                } else if (emp.center === '2센터' && emp.process === 'OB') {
+                    if (emp.gender === '남') {
+                        assignedFloor = OB_MAN_FLOOR;
+                    } else {
+                        assignedFloor = null;
+                    }
+                }
+                return {
+                    barcode: emp.barcode,
+                    kucode: emp.kucode,
+                    maskedName: maskName(emp.name),
+                    originalName: emp.name,
+                    process: info.name,
+                    floor: assignedFloor,
+                    color: info.color,
+                    lightColor: info.lightColor,
+                    gender: emp.gender,
+                    center: emp.center,
+                    status: emp.status  // 신규/기존 상태 보존
+                };
+            });
+            
+            const obWomen = processedEmployees.filter(a => a.process === 'OB' && a.gender === '여' && a.center === '2센터');
+            const backlog = parseBacklog();
+            let womenFloorAssignments = [];
+
+            if (backlog && obWomen.length > 0) {
+                const totalBacklog = Array.from(backlog.values()).reduce((sum, qty) => sum + qty, 0);
+                let assignedCount = 0;
+                let floorCounts = new Map(OB_WOMAN_FLOORS.map(f => [f, 0]));
+                if (totalBacklog > 0) {
+                    OB_WOMAN_FLOORS.forEach(floor => {
+                        const floorBacklog = backlog.get(floor) || 0;
+                        const count = Math.floor(obWomen.length * (floorBacklog / totalBacklog));
+                        floorCounts.set(floor, count);
+                        assignedCount += count;
+                    });
+                }
+                let remainder = obWomen.length - assignedCount;
+                const sortedBacklogFloors = [...(backlog.entries())].sort((a, b) => b[1] - a[1]).map(e => e[0]);
+                for (let i = 0; i < remainder; i++) {
+                    const floorToAdd = sortedBacklogFloors[i % sortedBacklogFloors.length];
+                    if (floorToAdd) floorCounts.set(floorToAdd, floorCounts.get(floorToAdd) + 1);
+                }
+                floorCounts.forEach((count, floor) => {
+                    for (let i = 0; i < count; i++) womenFloorAssignments.push(floor);
+                });
+            } else {
+                for (let i = 0; i < obWomen.length; i++) womenFloorAssignments.push(OB_WOMAN_FLOORS[i % OB_WOMAN_FLOORS.length]);
+            }
+            
+            // Fisher-Yates 셔플
+            for (let i = womenFloorAssignments.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [womenFloorAssignments[i], womenFloorAssignments[j]] = [womenFloorAssignments[j], womenFloorAssignments[i]];
+            }
+
+            obWomen.forEach((emp, index) => {
+                const finalFloor = womenFloorAssignments[index] || OB_WOMAN_FLOORS[0];
+                emp.floor = finalFloor;
+            });
+
+            // 쿠코드로 매핑
+            processedEmployees.forEach(emp => {
+                assignments.set(emp.kucode, emp);
+            });
+            
+            const additionalAnnouncements = announcementInput.value.trim();
+            let allAnnouncements = [...FIXED_ANNOUNCEMENTS];
+            if (additionalAnnouncements) {
+                allAnnouncements = allAnnouncements.concat(additionalAnnouncements.split('|').map(p => p.trim()));
+            }
+
+            if (allAnnouncements.length > 0) {
+                tickerContainer.classList.remove('hidden');
+                startAnnouncementCycle(allAnnouncements.join('|'));
+            } else {
+                tickerContainer.classList.add('hidden');
+                if (announcementInterval) clearInterval(announcementInterval);
+            }
+
+            displayObSummary();
+            setLoading(false);
+            downloadObButton.disabled = false;
+
+            revealManagementSections();
+            updateAddedEmployeesDisplay();
+            updateOverridesDisplay();
+            updateStats();
+
+			// 버튼 잠금
+            lockProcessButton();
+
+            // 음성 타이머 가동(배정 클릭은 사용자 제스처 → 자동재생 정책 통과)
+            primeAudio();
+            applyVoiceTimers();
+
+            // 자동 백업 + 연동 전송(새 배정이므로 스캔기록 초기화)
+            saveBackup(true);
+            syncResetScanned();
+            syncPushAssignments();
+
+            if (duplicateKucodes.size > 0) {
+                alert(`경고: ${duplicateKucodes.size}개의 쿠코드가 중복됩니다. 해당 쿠코드 스캔 시 중복 안내가 표시됩니다.\n\n인원 배정이 완료되었습니다.\n버튼이 잠겼습니다. 변경하려면 잠금을 해제하세요.`);
+            } else {
+                alert('인원 배정이 완료되었습니다.\n버튼이 잠겼습니다. 변경하려면 잠금을 해제하세요.');
+            }
+        }, 100);
+    }
+    
+    // 공정별 탭 구성 — 추후 IB도 층별 안내가 필요하면 floor:false → true 한 줄만 바꾸면 됨
+    const EXPORT_TABS = [
+        { name: '2OB',     key: 'OB',      floor: true,  match: e => e.center === '2센터' && e.process === 'OB' },
+        { name: '5OB',     key: 'OB',      floor: false, match: e => e.center === '5센터' && e.process === 'OB' },
+        { name: 'CFC OB',  key: 'CFC OB',  floor: false, match: e => e.process === 'CFC OB' },
+        { name: '2IB',     key: 'IB',      floor: false, match: e => e.center === '2센터' && e.process === 'IB' },
+        { name: '5IB',     key: 'IB',      floor: false, match: e => e.center === '5센터' && e.process === 'IB' },
+        { name: 'CFC IB',  key: 'CFC IB',  floor: false, match: e => e.process === 'CFC IB' },
+        { name: 'ICQA',    key: 'ICQA',    floor: false, match: e => e.process === 'ICQA' },
+        { name: '시설관리', key: '시설관리', floor: false, match: e => e.process === '시설관리' },
+    ];
+
+    function hex(c) { return String(c || '#000000').replace('#', '').toUpperCase(); }
+    function sanitizeSheetName(name) { return String(name).replace(/[:\\\/?*\[\]]/g, ' ').slice(0, 31); }
+    function floorRank(f) {
+        if (!f) return 9999;
+        const m = String(f).match(/(\d+)[.\-]?(\d+)?/);
+        if (!m) return 9998;
+        return parseInt(m[1], 10) * 100 + (m[2] ? parseInt(m[2], 10) : 0);
+    }
+    function floorCompare(a, b) { return floorRank(a) - floorRank(b); }
+    function memberSort(a, b) {
+        const ka = (a.kucode && a.kucode !== '-') ? 0 : 1;
+        const kb = (b.kucode && b.kucode !== '-') ? 0 : 1;
+        if (ka !== kb) return ka - kb;
+        return String(a.originalName || '').localeCompare(String(b.originalName || ''), 'ko');
+    }
+
+    function styleExportSheet(ws, aoa, rowMeta, titleFill, headerFill) {
+        const thin = { style: 'thin', color: { rgb: 'CBD5E1' } };
+        const allBorder = { top: thin, bottom: thin, left: thin, right: thin };
+        for (let r = 0; r < aoa.length; r++) {
+            const meta = rowMeta[r];
+            for (let c = 0; c < 3; c++) {
+                const ref = XLSX.utils.encode_cell({ r, c });
+                if (!ws[ref]) ws[ref] = { t: 's', v: '' };
+                const s = { alignment: { vertical: 'center', horizontal: c === 0 ? 'left' : 'center', wrapText: true }, border: allBorder };
+                if (meta === 'title') {
+                    s.fill = { fgColor: { rgb: titleFill } };
+                    s.font = { bold: true, sz: 14, color: { rgb: 'FFFFFF' } };
+                    s.alignment.horizontal = 'left';
+                } else if (meta === 'floorhead') {
+                    s.fill = { fgColor: { rgb: titleFill } };
+                    s.font = { bold: true, sz: 12, color: { rgb: 'FFFFFF' } };
+                    s.alignment.horizontal = 'left';
+                } else if (meta === 'header') {
+                    s.fill = { fgColor: { rgb: headerFill } };
+                    s.font = { bold: true, sz: 11, color: { rgb: '1E293B' } };
+                } else if (meta === 'dup') {
+                    s.fill = { fgColor: { rgb: 'FECACA' } };
+                    s.font = { bold: true, color: { rgb: 'B91C1C' } };
+                } else if (meta === 'spacer') {
+                    s.border = {};
+                } else {
+                    s.fill = { fgColor: { rgb: (r % 2 === 0) ? 'FFFFFF' : 'F8FAFC' } };
+                    s.font = { color: { rgb: '334155' } };
+                }
+                ws[ref].s = s;
+            }
+        }
+        ws['!rows'] = rowMeta.map(m => ({ hpt: m === 'title' ? 24 : (m === 'floorhead' ? 19 : (m === 'spacer' ? 6 : 16)) }));
+    }
+
+    function buildGroupedSheet(title, groups, titleFill, headerFill, dupSet) {
+        // groups: [{ label, members }]
+        const aoa = [[`${title}`, '', '']];
+        const merges = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 2 } }];
+        const rowMeta = ['title'];
+        groups.forEach(g => {
+            const r = aoa.length;
+            aoa.push([`${g.label} (${g.members.length}명)`, '', '']);
+            merges.push({ s: { r, c: 0 }, e: { r, c: 2 } });
+            rowMeta.push('floorhead');
+            aoa.push(['성함', '쿠코드', '성별']);
+            rowMeta.push('header');
+            g.members.slice().sort(memberSort).forEach(m => {
+                const ku = (m.kucode && m.kucode !== '-') ? m.kucode : '누락';
+                const isDup = dupSet.has(m.kucode);
+                aoa.push([m.originalName || '', ku, m.gender || '-']);
+                rowMeta.push((isDup || ku === '누락') ? 'dup' : 'data');
+            });
+            aoa.push(['', '', '']);
+            rowMeta.push('spacer');
+        });
+        if (rowMeta[rowMeta.length - 1] === 'spacer') { aoa.pop(); rowMeta.pop(); }
+        const ws = XLSX.utils.aoa_to_sheet(aoa);
+        ws['!cols'] = [{ wch: 16 }, { wch: 14 }, { wch: 8 }];
+        ws['!merges'] = merges;
+        styleExportSheet(ws, aoa, rowMeta, titleFill, headerFill);
+        return ws;
+    }
+
+    function downloadObAssignments() {
+        if (processedEmployees.length === 0) {
+            alert('먼저 인원 배정을 진행해주세요.');
+            return;
+        }
+
+        // 전체 쿠코드 중복 체크
+        const counts = {};
+        processedEmployees.forEach(e => {
+            if (e.kucode && e.kucode !== '-') counts[e.kucode] = (counts[e.kucode] || 0) + 1;
+        });
+        const dupSet = new Set(Object.keys(counts).filter(k => counts[k] > 1));
+
+        const workbook = XLSX.utils.book_new();
+        let sheetCount = 0;
+
+        // 카테고리 탭(기존 인원만)
+        const existing = processedEmployees.filter(e => e.status !== '신규');
+        EXPORT_TABS.forEach(tab => {
+            const members = existing.filter(tab.match);
+            if (members.length === 0) return;
+            const info = PROCESS_INFO[tab.key] || PROCESS_INFO.DEFAULT;
+            let groups;
+            if (tab.floor) {
+                const floors = [...new Set(members.map(m => m.floor))].sort(floorCompare);
+                groups = floors.map(fl => ({ label: fl || '미지정', members: members.filter(m => m.floor === fl) }));
+            } else {
+                groups = [{ label: tab.name, members }];
+            }
+            const ws = buildGroupedSheet(`${tab.name} (${members.length}명)`, groups, hex(info.color), hex(info.lightColor), dupSet);
+            XLSX.utils.book_append_sheet(workbook, ws, sanitizeSheetName(tab.name));
+            sheetCount++;
+        });
+
+        // 신규관리 탭(신규 전원, 센터·공정별로 묶음)
+        const newbies = processedEmployees.filter(e => e.status === '신규');
+        if (newbies.length > 0) {
+            const gmap = {};
+            newbies.forEach(m => { const g = `${m.center} ${m.process}`; (gmap[g] = gmap[g] || []).push(m); });
+            const groups = Object.keys(gmap).sort().map(label => ({ label, members: gmap[label] }));
+            const di = PROCESS_INFO.DEFAULT;
+            const ws = buildGroupedSheet(`신규관리 (${newbies.length}명)`, groups, hex(di.color), hex(di.lightColor), dupSet);
+            XLSX.utils.book_append_sheet(workbook, ws, '신규관리');
+            sheetCount++;
+        }
+
+        if (sheetCount === 0) {
+            alert('저장할 인원이 없습니다.');
+            return;
+        }
+
+        const d = new Date();
+        const ymd = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
+        XLSX.writeFile(workbook, `GWJ2_5_공정배정_${ymd}.xlsx`);
+    }
+
+    function displayObSummary() {
+        obSummaryContent.innerHTML = '';
+        
+        const obAssignments = processedEmployees.filter(v => 
+            (v.process === 'OB' || v.process === 'CFC OB') && 
+            v.center === '2센터'
+        );
+
+        // 쿠코드 중복 체크
+        const obKucodeCounts = {};
+        obAssignments.forEach(emp => {
+            if (emp.kucode) {
+                obKucodeCounts[emp.kucode] = (obKucodeCounts[emp.kucode] || 0) + 1;
+            }
+        });
+        const obDuplicateKucodes = new Set();
+        for (const kucode in obKucodeCounts) {
+            if (obKucodeCounts[kucode] > 1) {
+                obDuplicateKucodes.add(kucode);
+            }
+        }
+        
+        const dynamicFloors = [...new Set(obAssignments.map(a => a.floor))].sort();
+        
+        dynamicFloors.forEach(floor => {
+            const floorMembers = obAssignments.filter(a => a.floor === floor);
+
+            floorMembers.sort((a, b) => {
+                const hasKucodeA = a.kucode && a.kucode !== '-';
+                const hasKucodeB = b.kucode && b.kucode !== '-';
+                return hasKucodeB - hasKucodeA;
+            });
+
+            if (floorMembers.length > 0) {
+                const floorSection = document.createElement('div');
+                floorSection.className = 'mb-4';
+                const header = document.createElement('div');
+                header.className = 'mb-2';
+                const scannedInFloor = floorMembers.filter(m => scannedEmployees.has(m.kucode)).length;
+                header.innerHTML = `<p class="font-bold text-lg text-slate-700">${floor} (${scannedInFloor}/${floorMembers.length}명 스캔완료)</p>`;
+                const grid = document.createElement('div');
+                grid.className = 'grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-1 text-sm';
+                floorMembers.forEach(member => {
+                    const displayKucode = (member.kucode && member.kucode !== '-') ? `(${member.kucode})` : '(쿠코드 누락)';
+                    const isDuplicate = obDuplicateKucodes.has(member.kucode);
+                    const isScanned = scannedEmployees.has(member.kucode);
+                    const scanStatus = isScanned ? '<span class="text-green-600 font-semibold">✓</span>' : '<span class="text-slate-400">○</span>';
+                    const duplicateMarker = isDuplicate ? ' <span class="text-purple-600 font-bold">(중복)</span>' : '';
+                    grid.innerHTML += `<span>${scanStatus} ${member.originalName} ${displayKucode}${duplicateMarker}</span>`;
+                });
+                floorSection.appendChild(header);
+                floorSection.appendChild(grid);
+                obSummaryContent.appendChild(floorSection);
+            }
+        });
+
+        if (obSummaryContent.innerHTML === '') {
+            obSummaryContent.innerHTML = '<p>2센터 OB/CFC OB 배정 인원이 없습니다.</p>';
+        }
+        obSummary.classList.remove('hidden');
+    }
+
+    // --- 디스플레이 관련 함수들 ---
+    
+    function switchToDisplayView() {
+        setupView.classList.add('hidden');
+        displayView.style.display = 'flex';
+        welcomeMessage.classList.remove('hidden');
+        resultCard.classList.add('hidden');
+        
+        const additionalAnnouncements = announcementInput.value.trim();
+        let allAnnouncements = [...FIXED_ANNOUNCEMENTS];
+        if (additionalAnnouncements) {
+            allAnnouncements = allAnnouncements.concat(additionalAnnouncements.split('|').map(p => p.trim()));
+        }
+
+        if (allAnnouncements.length > 0) {
+            tickerContainer.classList.remove('hidden');
+            startAnnouncementCycle(allAnnouncements.join('|'));
+        } else {
+            tickerContainer.classList.add('hidden');
+            if (announcementInterval) clearInterval(announcementInterval);
+        }
+        primeAudio();
+        applyVoiceTimers();
+        focusKucodeInput();
+    }
+
+    function startAnnouncementCycle(text) {
+        if (announcementInterval) clearInterval(announcementInterval);
+        const phrases = text.split('|').map(p => p.trim()).filter(p => p.length > 0);
+        let currentPhraseIndex = 0;
+        if (phrases.length === 0) {
+            tickerContainer.classList.add('hidden');
+            return;
+        }
+        tickerText.textContent = phrases[currentPhraseIndex];
+        setTimeout(() => tickerText.classList.add('visible'), 100);
+        if (phrases.length <= 1) return;
+        announcementInterval = setInterval(() => {
+            tickerText.classList.remove('visible');
+            setTimeout(() => {
+                currentPhraseIndex = (currentPhraseIndex + 1) % phrases.length;
+                tickerText.textContent = phrases[currentPhraseIndex];
+                tickerText.classList.add('visible');
+            }, 500);
+        }, 4000);
+    }
+    
+    // --- 쿠코드 스캔 처리 함수들 ---
+    
+    function submitKucode() {
+        const kucode = kucodeInput.value.trim().toUpperCase();
+        if(kucode) {
+            showResult(kucode);
+        }
+        kucodeInput.value = '';
+        resetScannerBuffer();
+        focusKucodeInput();
+    }
+
+    function showResult(kucode) {
+        clearTimeout(resultTimer);
+        
+        welcomeMessage.style.display = 'none';
+        resultCard.classList.add('hidden');
+        notFoundCard.classList.add('hidden');
+        duplicateCard.classList.add('hidden');
+        newbieCard.classList.add('hidden');
+
+        // 중복 쿠코드 체크
+        if (duplicateKucodes.has(kucode) && !processOverrides.has(kucode)) {
+            playAlertSound();
+            duplicateCard.classList.remove('hidden', 'scale-0');
+            duplicateCard.classList.add('scale-100');
+            document.body.style.background = 'linear-gradient(135deg, #f3e8ff 0%, #e9d5ff 100%)';
+        } else {
+            const assignment = assignments.get(kucode);
+            if (assignment) {
+                // 신규 사원 체크
+                if (assignment.status === '신규') {
+                    playSuccessSound();
+                    scannedEmployees.add(kucode);
+                    syncPushScan(kucode);
+                    saveBackup(true);
+                    updateStats();
+                    displayObSummary();
+                    
+                    newbieCard.classList.remove('hidden', 'scale-0');
+                    newbieCard.classList.add('scale-100');
+                    document.body.style.background = 'linear-gradient(135deg, #dcfce7 0%, #d1fae5 100%)';
+                } else {
+                    // 기존 사원
+                    playSuccessSound();
+                    scannedEmployees.add(kucode);
+                    syncPushScan(kucode);
+                    saveBackup(true);
+                    updateStats();
+                    displayObSummary();
+                    
+                    resultCard.classList.remove('hidden', 'scale-0');
+                    resultCard.classList.add('scale-100');
+                    
+                    document.body.style.background = `linear-gradient(135deg, ${assignment.lightColor} 0%, ${assignment.lightColor}dd 100%)`;
+                    resultProcess.textContent = `${assignment.center} ${processLabel(assignment.process)}`;
+                    resultName.textContent = assignment.maskedName;
+                    resultFloor.textContent = assignment.floor;
+                    updateResultLocationPanel(assignment);
+                    colorBar.style.backgroundColor = assignment.color;
+                    resultProcess.style.color = assignment.color;
+                    resultFloor.style.color = assignment.color;
+                    // 이동 층 박스의 좌측 보더 색상도 변경
+                    const floorBox = resultFloor.parentElement;
+                    floorBox.style.borderLeftColor = assignment.color;
+                }
+            } else {
+                playAlertSound();
+                notFoundCard.classList.remove('hidden', 'scale-0');
+                notFoundCard.classList.add('scale-100');
+                document.body.style.background = `linear-gradient(135deg, ${PROCESS_INFO['HUB'].lightColor} 0%, ${PROCESS_INFO['HUB'].lightColor}dd 100%)`;
+            }
+        }
+        
+        const timeoutDuration = duplicateKucodes.has(kucode) ? 10000 : (assignments.has(kucode) ? 7000 : 10000);
+        resultTimer = setTimeout(() => {
+            resultCard.classList.remove('scale-100');
+            resultCard.classList.add('scale-0');
+            notFoundCard.classList.remove('scale-100');
+            notFoundCard.classList.add('scale-0');
+            duplicateCard.classList.remove('scale-100');
+            duplicateCard.classList.add('scale-0');
+            newbieCard.classList.remove('scale-100');
+            newbieCard.classList.add('scale-0');
+            
+            document.body.style.background = 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)';
+            
+            setTimeout(() => {
+                resultCard.classList.add('hidden');
+                notFoundCard.classList.add('hidden');
+                duplicateCard.classList.add('hidden');
+                newbieCard.classList.add('hidden');
+                welcomeMessage.style.display = 'block'; 
+            }, 500);
+
+            focusKucodeInput();
+        }, timeoutDuration);
+    }
+    
+    // --- 인원 추가 관련 함수들 ---
+
+    function populateAddProcessOptions() {
+        addProcessSelect.innerHTML = '<option value="">공정 선택</option>';
+        for (const key in PROCESS_INFO) {
+            if (key !== 'DEFAULT') {
+                const option = document.createElement('option');
+                option.value = key;
+                option.textContent = PROCESS_INFO[key].name;
+                addProcessSelect.appendChild(option);
+            }
+        }
+    }
+
+    function populateAddFloorOptions() {
+        addFloorSelect.innerHTML = '<option value="">이동층 선택(2OB는 자동)</option>';
+        ALL_FLOORS.forEach(floor => {
+            const option = document.createElement('option');
+            option.value = floor;
+            option.textContent = floor;
+            addFloorSelect.appendChild(option);
+        });
+    }
+
+    function normalizeGender(g) {
+        const v = String(g || '').trim().toUpperCase();
+        if (['남', '남자', 'M', 'MALE'].includes(v)) return '남';
+        if (['여', '여자', 'F', 'FEMALE'].includes(v)) return '여';
+        return '-';
+    }
+
+    function addManualEmployee() {
+        const raw = addBulkInput.value.trim();
+        const center = addCenterSelect.value;
+        const processKey = addProcessSelect.value;
+        const selectedFloor = addFloorSelect.value;
+
+        if (!raw) { alert('추가할 인원을 입력해주세요.\n(한 줄에 한 명: 쿠코드 이름 성별)'); return; }
+        if (!processKey) { alert('공정을 선택해주세요.'); return; }
+
+        const processInfo = PROCESS_INFO[processKey];
+        const lines = raw.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+
+        const added = [];
+        const failed = [];
+
+        lines.forEach(line => {
+            const tokens = line.split(/[\s,]+/).filter(t => t.length > 0);
+            if (tokens.length < 2) { failed.push(`${line} (형식오류)`); return; }
+
+            const kucode = tokens[0].toUpperCase();
+            let nameTokens = tokens.slice(1);
+            let gender = '-';
+            const lastNorm = normalizeGender(nameTokens[nameTokens.length - 1]);
+            if (nameTokens.length >= 2 && lastNorm !== '-') {
+                gender = lastNorm;
+                nameTokens = nameTokens.slice(0, -1);
+            }
+            const name = nameTokens.join(' ').trim();
+
+            if (!kucode || !name) { failed.push(`${line} (형식오류)`); return; }
+            if (assignments.has(kucode)) { failed.push(`${kucode} ${name} (이미 등록됨)`); return; }
+
+            // 층 결정: 미선택 시 자동
+            let floor = selectedFloor;
+            if (!floor) {
+                if (center === '2센터' && processKey === 'OB') {
+                    floor = gender === '남' ? OB_MAN_FLOOR : OB_WOMAN_FLOORS[0];
+                } else if (center === '5센터' && (processKey === 'OB' || processKey === 'IB')) {
+                    floor = '4-1층';
+                } else {
+                    floor = processInfo.floor || '미지정';
+                }
+            }
+
+            const newEmployee = {
+                barcode: '-',
+                kucode,
+                maskedName: maskName(name),
+                originalName: name,
+                process: processInfo.name,
+                floor,
+                color: processInfo.color,
+                lightColor: processInfo.lightColor,
+                gender,
+                center,
+                status: '기존',
+                isManuallyAdded: true
+            };
+            processedEmployees.push(newEmployee);
+            assignments.set(kucode, newEmployee);
+            added.push(`${name}(${kucode})`);
+        });
+
+        if (added.length > 0) {
+            updateStats();
+            displayObSummary();
+            updateAddedEmployeesDisplay();
+            saveBackup();
+            syncPushAssignments();
+        }
+
+        let msg = '';
+        if (added.length) msg += `✅ ${added.length}명 추가 완료:\n${added.join(', ')}`;
+        if (failed.length) { if (msg) msg += '\n\n'; msg += `⚠️ ${failed.length}명 실패:\n${failed.join('\n')}`; }
+        alert(msg || '추가된 인원이 없습니다.');
+
+        if (added.length > 0) {
+            addBulkInput.value = '';
+            addBulkInput.focus();
+        }
+    }
+
+    function removeManualEmployee(kucode) {
+        const employee = processedEmployees.find(emp => emp.kucode === kucode && emp.isManuallyAdded);
+        if (!employee) return;
+
+        if (!confirm(`'${employee.originalName}'님을 삭제하시겠습니까?`)) return;
+
+        processedEmployees = processedEmployees.filter(emp => !(emp.kucode === kucode && emp.isManuallyAdded));
+        assignments.delete(kucode);
+        scannedEmployees.delete(kucode);
+
+        updateStats();
+        displayObSummary();
+        updateAddedEmployeesDisplay();
+        saveBackup();
+        syncPushAssignments();
+    }
+
+    function updateAddedEmployeesDisplay() {
+        const addedEmployees = processedEmployees.filter(emp => emp.isManuallyAdded === true);
+
+        if (addedEmployees.length === 0) {
+            addedEmployeeList.innerHTML = '<p class="text-slate-400 text-center py-4">수동으로 추가된 인원이 없습니다.</p>';
+            return;
+        }
+
+        addedEmployeeList.innerHTML = '';
+        addedEmployees.forEach(emp => {
+            const item = document.createElement('div');
+            item.className = 'flex justify-between items-center bg-white p-3 rounded-xl shadow-sm border border-slate-200';
+            item.innerHTML = `
+                <span class="text-sm">
+                    <span class="font-bold text-slate-700">${emp.originalName}</span>
+                    <span class="text-slate-500">(${emp.kucode}${emp.gender && emp.gender !== '-' ? ' · ' + emp.gender : ''})</span>
+                    <span class="mx-1">|</span>
+                    <span class="text-teal-600 font-semibold">${emp.center} ${emp.process} / ${emp.floor}</span>
+                </span>
+                <button data-kucode="${emp.kucode}" class="remove-added-btn text-xs bg-red-100 text-red-700 hover:bg-red-200 px-3 py-1 rounded-full font-medium transition-colors">삭제</button>
+            `;
+            addedEmployeeList.appendChild(item);
+        });
+    }
+
+    // --- 수동 변경 관련 함수들 ---
+
+    function populateProcessOverrideOptions() {
+        overrideProcessSelect.innerHTML = '<option value="">공정 변경 안함</option>';
+        for (const key in PROCESS_INFO) {
+            if (key !== 'DEFAULT') {
+                const option = document.createElement('option');
+                option.value = key;
+                option.textContent = PROCESS_INFO[key].name;
+                overrideProcessSelect.appendChild(option);
+            }
+        }
+    }
+    
+    function populateFloorOverrideOptions() {
+        overrideFloorSelect.innerHTML = '<option value="">층 변경 안함</option>';
+        ALL_FLOORS.forEach(floor => {
+            const option = document.createElement('option');
+            option.value = floor;
+            option.textContent = floor;
+            overrideFloorSelect.appendChild(option);
+        });
+    }
+
+    function applyProcessOverride() {
+        const rawInput = overrideKucode.value.trim().toUpperCase();
+        const newProcessKey = overrideProcessSelect.value;
+        const newFloor = overrideFloorSelect.value;
+
+        if (!rawInput) {
+            alert('쿠코드를 입력해주세요.');
+            return;
+        }
+        if (!newProcessKey && !newFloor) {
+            alert('변경할 공정이나 층 중 하나는 선택해야 합니다.');
+            return;
+        }
+
+        // 쉼표, 공백, 줄바꿈으로 분리하여 쿠코드 목록 추출
+        const kucodeList = rawInput.split(/[\s,]+/).filter(k => k.length > 0);
+
+        if (kucodeList.length === 0) {
+            alert('유효한 쿠코드가 없습니다.');
+            return;
+        }
+
+        const successList = [];
+        const notFoundList = [];
+
+        kucodeList.forEach(kucodeValue => {
+            const employeeIndex = processedEmployees.findIndex(emp => emp.kucode === kucodeValue);
+
+            if (employeeIndex === -1) {
+                notFoundList.push(kucodeValue);
+                return;
+            }
+
+            const employeeToUpdate = processedEmployees[employeeIndex];
+            const kucode = employeeToUpdate.kucode;
+
+            if (!processOverrides.has(kucode)) {
+                const originalData = { ...employeeToUpdate };
+                processOverrides.set(kucode, originalData);
+            }
+
+            if (newProcessKey) {
+                const newProcessInfo = PROCESS_INFO[newProcessKey];
+                employeeToUpdate.process = newProcessInfo.name;
+                employeeToUpdate.color = newProcessInfo.color;
+                employeeToUpdate.lightColor = newProcessInfo.lightColor;
+
+                if (newProcessKey === 'OB' && employeeToUpdate.center === '2센터') {
+                    employeeToUpdate.floor = employeeToUpdate.gender === '남' ? OB_MAN_FLOOR : OB_WOMAN_FLOORS[0];
+                } else if (employeeToUpdate.center === '5센터' && (newProcessKey === 'OB' || newProcessKey === 'IB')) {
+                    employeeToUpdate.floor = '4-1층';
+                } else {
+                    employeeToUpdate.floor = newProcessInfo.floor;
+                }
+            }
+
+            if (newFloor) {
+                employeeToUpdate.floor = newFloor;
+            }
+
+            assignments.set(kucode, employeeToUpdate);
+            successList.push(`${employeeToUpdate.originalName}(${kucode})`);
+        });
+
+        // 결과 메시지 생성
+        let message = '';
+        if (successList.length > 0) {
+            message += `${successList.length}명 변경 완료:\n${successList.join(', ')}`;
+        }
+        if (notFoundList.length > 0) {
+            if (message) message += '\n\n';
+            message += `${notFoundList.length}명 찾을 수 없음:\n${notFoundList.join(', ')}`;
+        }
+        alert(message);
+
+        overrideKucode.value = '';
+        overrideProcessSelect.value = '';
+        overrideFloorSelect.value = '';
+
+        updateOverridesDisplay();
+        displayObSummary();
+        saveBackup();
+        syncPushAssignments();
+    }
+
+    function revertOverride(kucodeToRevert) {
+        if (!processOverrides.has(kucodeToRevert)) return;
+
+        const originalData = processOverrides.get(kucodeToRevert);
+        const employeeIndex = processedEmployees.findIndex(emp => emp.kucode === kucodeToRevert);
+
+        if (employeeIndex !== -1) {
+            processedEmployees[employeeIndex] = { ...originalData };
+            assignments.set(kucodeToRevert, processedEmployees[employeeIndex]);
+            
+            processOverrides.delete(kucodeToRevert);
+
+            alert(`'${originalData.originalName}'님의 정보가 원래대로 복구되었습니다.`);
+            
+            updateOverridesDisplay();
+            displayObSummary();
+            saveBackup();
+            syncPushAssignments();
+        }
+    }
+
+    function updateOverridesDisplay() {
+        overrideList.innerHTML = '';
+        if (processOverrides.size === 0) {
+            overrideList.innerHTML = '<p class="text-slate-400 text-center py-4">수동으로 변경된 사원이 없습니다.</p>';
+            return;
+        }
+        
+        processOverrides.forEach((originalData, kucode) => {
+            const currentData = processedEmployees.find(emp => emp.kucode === kucode);
+            const item = document.createElement('div');
+            item.className = 'flex justify-between items-center bg-white p-3 rounded-xl shadow-sm border border-slate-200';
+            item.innerHTML = `
+                <span class="text-sm">
+                    <span class="font-bold text-slate-700">${originalData.originalName}</span> 
+                    <span class="text-slate-500">(${kucode})</span><br>
+                    <span class="text-slate-500">${originalData.process}/${originalData.floor || '미지정'}</span> → 
+                    <span class="text-indigo-600 font-semibold">${currentData.process}/${currentData.floor}</span>
+                </span>
+                <button data-kucode="${kucode}" class="revert-override-btn text-xs bg-red-100 text-red-700 hover:bg-red-200 px-3 py-1 rounded-full font-medium transition-colors">되돌리기</button>
+            `;
+            overrideList.appendChild(item);
+        });
+    }
+
+    // --- 음성 안내 관련 함수들 ---
+
+    function makeAudio(src) {
+        const a = new Audio();
+        if (src) a.src = src;
+        return a;
+    }
+
+    function renderVoiceSlots() {
+        if (!voiceSlotsContainer) return;
+        voiceSlotsContainer.innerHTML = '';
+        voiceSlots.forEach((slot, i) => {
+            const card = document.createElement('div');
+            card.className = 'voice-slot space-y-2 bg-white/60 rounded-xl p-3 border border-rose-100';
+            card.dataset.idx = i;
+            card.innerHTML = `
+                <div class="flex items-center justify-between">
+                    <label class="font-semibold text-slate-600 text-sm">${i + 1}번 음성</label>
+                    <div class="flex items-center gap-1">
+                        <input type="number" class="voice-interval w-16 p-1.5 bg-white rounded-lg border border-slate-300 text-center text-slate-700 text-sm" value="${slot.interval}" min="0.1" step="0.1">
+                        <span class="text-xs text-slate-500">분</span>
+                        <button type="button" class="voice-remove ml-1 w-6 h-6 rounded-md bg-rose-200 text-rose-700 font-black hover:bg-rose-300 flex items-center justify-center leading-none" title="삭제">－</button>
+                    </div>
+                </div>
+                <input type="file" class="voice-file block w-full text-xs text-slate-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-rose-100 file:text-rose-700 file:font-semibold hover:file:bg-rose-200 cursor-pointer" accept="audio/*">
+                <div class="flex items-center justify-between gap-2">
+                    <p class="voice-name text-xs text-slate-500 truncate flex-1">${slot.fileName || '파일 없음'}</p>
+                    <button type="button" class="voice-test text-xs bg-rose-500 text-white px-2 py-1 rounded-md hover:bg-rose-600 flex-shrink-0 ${slot.src ? '' : 'hidden'}">▶ 테스트</button>
+                </div>
+            `;
+            voiceSlotsContainer.appendChild(card);
+        });
+    }
+
+    function addVoiceSlot(data) {
+        const defaultInterval = voiceSlots.length === 0 ? 3 : (voiceSlots.length === 1 ? 5 : 5);
+        voiceSlots.push({
+            src: (data && data.src) || '',
+            fileName: (data && data.fileName) || '',
+            interval: (data && data.interval != null && data.interval !== '') ? data.interval : defaultInterval,
+            audio: makeAudio((data && data.src) || ''),
+            timer: null
+        });
+        renderVoiceSlots();
+    }
+
+    function removeVoiceSlot(i) {
+        const slot = voiceSlots[i];
+        if (!slot) return;
+        if (slot.timer) clearInterval(slot.timer);
+        voiceSlots.splice(i, 1);
+        renderVoiceSlots();
+        persistDeviceSettings();
+        applyVoiceTimers();
+    }
+
+    function handleVoiceFile(i, file) {
+        const slot = voiceSlots[i];
+        if (!slot || !file) return;
+        if (file.size > 8 * 1024 * 1024) { alert('음성 파일이 너무 큽니다(8MB 초과). 더 작은 파일을 사용해주세요.'); return; }
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            slot.src = e.target.result;
+            slot.fileName = file.name;
+            slot.audio.src = slot.src;
+            renderVoiceSlots();
+            persistDeviceSettings();
+            applyVoiceTimers();
+        };
+        reader.readAsDataURL(file);
+    }
+
+    function primeAudio() {
+        if (audioUnlocked) return;
+        voiceSlots.forEach(slot => {
+            const a = slot.audio;
+            try {
+                a.muted = true;
+                const p = a.play();
+                if (p && p.then) { p.then(() => { a.pause(); a.currentTime = 0; a.muted = false; }).catch(() => { a.muted = false; }); }
+                else { try { a.pause(); } catch (e) {} a.muted = false; }
+            } catch (e) {}
+        });
+        audioUnlocked = true;
+    }
+
+    function playVoiceSlot(i, isTest) {
+        const slot = voiceSlots[i];
+        if (!slot || !slot.src) { if (isTest) alert('먼저 음성 파일을 업로드해주세요.'); return; }
+        try {
+            slot.audio.muted = false;
+            if (slot.audio.src !== slot.src) slot.audio.src = slot.src;
+            slot.audio.currentTime = 0;
+            const p = slot.audio.play();
+            if (p && p.catch) p.catch(err => console.warn('음성 재생 실패(자동재생 정책):', err));
+        } catch (e) { console.warn('음성 재생 오류:', e); }
+    }
+
+    function applyVoiceTimers() {
+        voiceSlots.forEach(slot => { if (slot.timer) { clearInterval(slot.timer); slot.timer = null; } });
+        if (!voiceEnabled.checked) return;
+        voiceSlots.forEach((slot, i) => {
+            const m = parseFloat(slot.interval) || 0;
+            if (slot.src && m > 0) slot.timer = setInterval(() => playVoiceSlot(i, false), m * 60000);
+        });
+    }
+
+    // --- 집합 장소 이미지 관련 함수들 ---
+
+    function populateImageProcessOptions() {
+        imgProcessSelect.innerHTML = '';
+        for (const key in PROCESS_INFO) {
+            if (key !== 'DEFAULT') {
+                const o = document.createElement('option');
+                o.value = key; o.textContent = PROCESS_INFO[key].name;
+                imgProcessSelect.appendChild(o);
+            }
+        }
+    }
+
+    function populateImageFloorOptions() {
+        imgFloorSelect.innerHTML = '<option value="">층 전체(공정 기본)</option>';
+        ALL_FLOORS.forEach(fl => {
+            const o = document.createElement('option');
+            o.value = fl; o.textContent = fl;
+            imgFloorSelect.appendChild(o);
+        });
+    }
+
+    function buildImageKey() {
+        const center = imgCenterSelect.value;
+        const process = imgProcessSelect.value;
+        const floor = imgFloorSelect.value;
+        return floor ? `${center}|${process}|${floor}` : `${center}|${process}`;
+    }
+
+    let pendingImageDataUrl = '';
+    function handleImageFilePreview(event) {
+        const file = event.target.files[0];
+        if (!file) { pendingImageDataUrl = ''; imgPreview.classList.add('hidden'); return; }
+        if (file.size > 5 * 1024 * 1024) {
+            alert('이미지 파일이 너무 큽니다(5MB 초과). 더 작은 파일을 사용해주세요.');
+            event.target.value = ''; pendingImageDataUrl = '';
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            pendingImageDataUrl = e.target.result;
+            imgPreview.src = pendingImageDataUrl;
+            imgPreview.classList.remove('hidden');
+        };
+        reader.readAsDataURL(file);
+    }
+
+    function applyLocationImage() {
+        if (!pendingImageDataUrl) { alert('적용할 이미지 파일을 먼저 선택해주세요.'); return; }
+        const key = buildImageKey();
+        locationImages[key] = pendingImageDataUrl;
+        pendingImageDataUrl = '';
+        imgFileInput.value = '';
+        imgPreview.classList.add('hidden');
+        updateImageListDisplay();
+        persistDeviceSettings();
+        syncPushAssignments();
+        alert(`'${key}' 집합 장소 이미지가 적용되었습니다.`);
+    }
+
+    function removeLocationImage(key) {
+        if (!locationImages[key]) return;
+        if (!confirm(`'${key}' 이미지를 삭제하시겠습니까?`)) return;
+        delete locationImages[key];
+        updateImageListDisplay();
+        persistDeviceSettings();
+        syncPushAssignments();
+    }
+
+    function updateImageListDisplay() {
+        if (!imgList) return;
+        const keys = Object.keys(locationImages);
+        if (keys.length === 0) {
+            imgList.innerHTML = '<p class="text-slate-400 text-center py-3 text-xs">업로드한 이미지가 없습니다. (코드 기본 이미지 사용)</p>';
+            return;
+        }
+        imgList.innerHTML = '';
+        keys.forEach(key => {
+            const item = document.createElement('div');
+            item.className = 'flex items-center gap-2 bg-white p-2 rounded-xl shadow-sm border border-slate-200';
+            item.innerHTML = `
+                <img src="${locationImages[key]}" class="w-10 h-10 object-cover rounded-lg border border-violet-200 flex-shrink-0" alt="">
+                <span class="text-xs font-medium text-slate-600 flex-1 truncate">${key}</span>
+                <button data-key="${key}" class="remove-img-btn text-xs bg-red-100 text-red-700 hover:bg-red-200 px-2 py-1 rounded-full font-medium flex-shrink-0">삭제</button>
+            `;
+            imgList.appendChild(item);
+        });
+    }
+
+    // --- 공지/설정 영속화 ---
+
+    function refreshAnnouncements() {
+        const additional = announcementInput.value.trim();
+        let all = [...FIXED_ANNOUNCEMENTS];
+        if (additional) all = all.concat(additional.split('|').map(p => p.trim()));
+        if (all.length > 0) {
+            tickerContainer.classList.remove('hidden');
+            startAnnouncementCycle(all.join('|'));
+        } else {
+            tickerContainer.classList.add('hidden');
+            if (announcementInterval) clearInterval(announcementInterval);
+        }
+    }
+
+    function persistDeviceSettings() {
+        try {
+            const d = {
+                voiceEnabled: voiceEnabled.checked,
+                voiceSlots: voiceSlots.map(s => ({ src: s.src, fileName: s.fileName, interval: s.interval })),
+                locationImages,
+                unlockPassword
+            };
+            localStorage.setItem('gwj_device_settings', JSON.stringify(d));
+        } catch (e) { console.warn('기기 설정 저장 실패(용량 초과 가능):', e); }
+    }
+
+    function loadDeviceSettings() {
+        try {
+            const raw = localStorage.getItem('gwj_device_settings');
+            if (!raw) { addVoiceSlot(); addVoiceSlot(); return; }   // 기본 2슬롯(3·5분)
+            const d = JSON.parse(raw);
+            voiceEnabled.checked = !!d.voiceEnabled;
+            locationImages = d.locationImages || {};
+            if (typeof d.unlockPassword === 'string' && d.unlockPassword) unlockPassword = d.unlockPassword;
+            voiceSlots = [];
+            if (Array.isArray(d.voiceSlots) && d.voiceSlots.length) {
+                d.voiceSlots.forEach(s => addVoiceSlot(s));
+            } else {
+                addVoiceSlot(); addVoiceSlot();
+            }
+            updateImageListDisplay();
+        } catch (e) { console.warn('기기 설정 로드 실패:', e); addVoiceSlot(); addVoiceSlot(); }
+    }
+
+    // --- 설정 탭 / 비밀번호 ---
+
+    function showSettingsTab(key) {
+        settingsTabs.forEach(b => b.classList.toggle('tab-active', b.dataset.tab === key));
+        settingsPanels.forEach(p => p.classList.toggle('hidden', p.dataset.panel !== key));
+    }
+
+    // 배정 완료 후 인원관리 섹션 노출(안내 힌트 숨김)
+    function revealManagementSections() {
+        addEmployeeSection.classList.remove('hidden');
+        manualOverrideSection.classList.remove('hidden');
+        if (peopleEmptyHint) peopleEmptyHint.classList.add('hidden');
+    }
+
+    function saveUnlockPassword() {
+        const v = (unlockPassSetting.value || '').trim();
+        if (!v) { alert('새 비밀번호를 입력해주세요.'); return; }
+        if (v === MASTER_KEY) { alert('마스터키(0127)는 비밀번호로 사용할 수 없습니다.'); return; }
+        unlockPassword = v;
+        persistDeviceSettings();
+        unlockPassSetting.value = '';
+        alert('잠금 비밀번호가 변경되었습니다.');
+    }
+
+    // --- 실시간 연동(Firebase) 관련 함수들 ---
+
+    function isSyncReady() {
+        return typeof firebase !== 'undefined' && FIREBASE_CONFIG && !!FIREBASE_CONFIG.projectId;
+    }
+
+    function updateSyncStatus(text, ok) {
+        if (!syncStatusBadge) return;
+        syncStatusBadge.textContent = text;
+        syncStatusBadge.className = 'ml-2 px-3 py-1 text-xs font-semibold rounded-full ' +
+            (ok ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500');
+    }
+
+    let syncUnsub1 = null, syncUnsub2 = null;
+
+    function ensureFirebase() {
+        if (firebaseDb) return true;
+        if (!isSyncReady()) return false;
+        try {
+            firebaseApp = (firebase.apps && firebase.apps.length) ? firebase.app() : firebase.initializeApp(FIREBASE_CONFIG);
+            firebaseDb = firebase.firestore();
+            return true;
+        } catch (e) {
+            console.error('Firebase 초기화 실패:', e);
+            return false;
+        }
+    }
+
+    function initFirebaseSync() {
+        // 기존 구독 해제
+        if (syncUnsub1) { try { syncUnsub1(); } catch (e) {} syncUnsub1 = null; }
+        if (syncUnsub2) { try { syncUnsub2(); } catch (e) {} syncUnsub2 = null; }
+        syncRef = null; syncScanRef = null;
+
+        // 토글 없음 — Firebase가 설정돼 있으면 항상 자동 연동
+        if (!ensureFirebase()) { updateSyncStatus('Firebase 설정 필요', false); return; }
+
+        try {
+            syncRef = firebaseDb.doc(SYNC_DOC);
+            syncScanRef = firebaseDb.doc(SYNC_SCAN_DOC);
+
+            syncUnsub1 = syncRef.onSnapshot((snap) => {
+                const d = snap.data();
+                if (d && d.clientId !== CLIENT_ID && d.json) {
+                    try { applyRemoteAssignments(JSON.parse(d.json)); }
+                    catch (e) { console.warn('원격 데이터 파싱 실패:', e); }
+                }
+            }, (err) => { console.warn('연동 구독 오류:', err); updateSyncStatus('권한/연결 오류', false); });
+
+            syncUnsub2 = syncScanRef.onSnapshot((snap) => {
+                const d = snap.data();
+                if (d) applyRemoteScanned(d);
+            }, (err) => { console.warn('스캔 구독 오류:', err); });
+
+            updateSyncStatus('연결됨', true);
+        } catch (e) {
+            console.error('Firebase 연동 실패:', e);
+            updateSyncStatus('연결 실패', false);
+        }
+    }
+
+    function serializeAssignmentsState() {
+        return {
+            clientId: CLIENT_ID,
+            updatedAt: Date.now(),
+            center2Data, center5Data,
+            processedEmployees,
+            assignments: Array.from(assignments.entries()),
+            duplicateKucodes: Array.from(duplicateKucodes),
+            processOverrides: Array.from(processOverrides.entries()),
+            backlogValues: { backlog61: backlogInput61.value, backlog72: backlogInput72.value, backlog73: backlogInput73.value },
+            announcement: announcementInput.value,
+            isProcessButtonLocked,
+            locationImages
+        };
+    }
+
+    function syncPushAssignments() {
+        if (isApplyingRemote || !syncRef) return;
+        if (syncPushTimer) clearTimeout(syncPushTimer);
+        syncPushTimer = setTimeout(() => {
+            try {
+                let state = serializeAssignmentsState();
+                let json = JSON.stringify(state);
+                // Firestore 문서 1MiB 제한 → 초과 시 이미지 제외하고 전송
+                if (json.length > 900000) {
+                    state = { ...state, locationImages: {}, imagesOmitted: true };
+                    json = JSON.stringify(state);
+                }
+                syncRef.set({ clientId: CLIENT_ID, updatedAt: Date.now(), json });
+            } catch (e) { console.warn('동기화 전송 실패:', e); }
+        }, 500);
+    }
+
+    function syncPushScan(kucode) {
+        if (isApplyingRemote || !syncScanRef || !kucode) return;
+        try {
+            const obj = {}; obj[String(kucode)] = true;
+            syncScanRef.set(obj, { merge: true });
+        } catch (e) {}
+    }
+
+    function syncResetScanned() {
+        if (!syncScanRef) return;
+        try { syncScanRef.set({}); } catch (e) {}
+    }
+
+    function applyRemoteAssignments(data) {
+        isApplyingRemote = true;
+        try {
+            center2Data = data.center2Data || [];
+            center5Data = data.center5Data || [];
+            processedEmployees = data.processedEmployees || [];
+            assignments = new Map(data.assignments || []);
+            duplicateKucodes = new Set(data.duplicateKucodes || []);
+            processOverrides = new Map(data.processOverrides || []);
+            if (data.backlogValues) {
+                backlogInput61.value = data.backlogValues.backlog61 || '';
+                backlogInput72.value = data.backlogValues.backlog72 || '';
+                backlogInput73.value = data.backlogValues.backlog73 || '';
+            }
+            if (typeof data.announcement === 'string') announcementInput.value = data.announcement;
+            if (data.locationImages && !data.imagesOmitted) { locationImages = data.locationImages; updateImageListDisplay(); persistDeviceSettings(); }
+            if (data.isProcessButtonLocked) lockProcessButton(); else unlockProcessButton();
+
+            if (processedEmployees.length > 0) {
+                downloadObButton.disabled = false;
+                revealManagementSections();
+            }
+            updateAddedEmployeesDisplay();
+            updateOverridesDisplay();
+            displayObSummary();
+            updateStats();
+            refreshAnnouncements();
+            saveBackup();
+            updateSyncStatus('수신 · ' + new Date().toLocaleTimeString('ko-KR'), true);
+        } catch (e) {
+            console.error('원격 상태 적용 실패:', e);
+        } finally {
+            isApplyingRemote = false;
+        }
+    }
+
+    function applyRemoteScanned(map) {
+        isApplyingRemote = true;
+        try {
+            Object.keys(map).forEach(ku => { if (map[ku]) scannedEmployees.add(ku); });
+            updateStats();
+            displayObSummary();
+        } finally {
+            isApplyingRemote = false;
+        }
+    }
+
+    // --- 투어 가이드 ---
+
+    const tourOverlay = document.getElementById('tour-overlay');
+    const tourHighlight = document.getElementById('tour-highlight');
+    const tourTooltip = document.getElementById('tour-tooltip');
+    const tourTooltipArrow = document.getElementById('tour-tooltip-arrow');
+    const tourStepBadge = document.getElementById('tour-step-badge');
+    const tourTitle = document.getElementById('tour-title');
+    const tourDescription = document.getElementById('tour-description');
+    const tourProgress = document.getElementById('tour-progress');
+    const tourNextBtn = document.getElementById('tour-next-btn');
+    const tourSkipBtn = document.getElementById('tour-skip-btn');
+    const tourStartButton = document.getElementById('tour-start-button');
+
+    let tourCurrentStep = 0;
+    let tourActive = false;
+
+    const TOUR_STEPS = [
+        {
+            target: 'step-upload-section',
+            title: '엑셀 파일 업로드',
+            description: '2센터와 5센터의 단기직 분배 엑셀 파일을 각각 업로드해주세요.\n파일명에 "2센터" 또는 "5센터"가 포함되어야 합니다.',
+            position: 'bottom',
+            requireSetup: true
+        },
+        {
+            target: 'step-backlog-section',
+            title: 'OB 여성 층별 백로그 입력',
+            description: '2센터 OB 공정의 여성 단기직 층 분배를 위해 각 층의 백로그 수치를 입력해주세요.\n입력하지 않으면 균등 분배됩니다. (선택사항)',
+            position: 'bottom',
+            requireSetup: true
+        },
+        {
+            target: 'step-process-buttons',
+            title: '인원 배정하기',
+            description: '모든 설정이 완료되면 "인원 배정하기" 버튼을 클릭하세요.\n⚠️ 인원 배정하기는 한 번만 눌러주세요!\n배정 후 버튼이 자동으로 잠금됩니다.',
+            position: 'top',
+            requireSetup: true
+        },
+        {
+            target: 'download-ob-button',
+            title: '공정별 인원 엑셀 저장',
+            description: '배정이 완료되면 "공정별 인원 엑셀 저장" 버튼을 클릭하여\n2OB·5OB·CFC OB·IB·ICQA·시설관리·신규관리 탭으로 정리된 엑셀을 다운로드하세요. (2OB는 층별 정리)',
+            position: 'top',
+            requireSetup: true
+        },
+        {
+            target: 'manual-input-area',
+            title: '쿠코드 스캔 시작',
+            description: '설정 창을 닫고 이 입력란을 클릭하세요.\n사원들이 쿠코드를 스캔하면 배정된 공정과 이동 층이 화면에 표시됩니다.',
+            position: 'top',
+            requireSetup: false
+        }
+    ];
+
+    tourStartButton.addEventListener('click', startTour);
+    tourNextBtn.addEventListener('click', nextTourStep);
+    tourSkipBtn.addEventListener('click', endTour);
+    tourOverlay.addEventListener('click', endTour);
+
+    function startTour() {
+        tourActive = true;
+        tourCurrentStep = 0;
+
+        // 설정 화면 열기 (첫 4단계는 설정 화면 내 요소)
+        if (setupView.classList.contains('hidden')) {
+            setupView.classList.remove('hidden');
+        }
+        // 첫 탭으로 이동 + 스크롤 맨 위로
+        showSettingsTab('prep');
+        document.getElementById('setup-card').scrollTop = 0;
+
+        tourOverlay.classList.remove('hidden');
+        tourHighlight.classList.remove('hidden');
+        tourTooltip.classList.remove('hidden');
+
+        showTourStep();
+    }
+
+    function nextTourStep() {
+        tourCurrentStep++;
+        if (tourCurrentStep >= TOUR_STEPS.length) {
+            endTour();
+            return;
+        }
+
+        const step = TOUR_STEPS[tourCurrentStep];
+
+        // 마지막 단계는 설정 창을 닫고 메인 화면에서 진행
+        if (!step.requireSetup && !setupView.classList.contains('hidden')) {
+            setupView.classList.add('hidden');
+        }
+
+        showTourStep();
+    }
+
+    function showTourStep() {
+        const step = TOUR_STEPS[tourCurrentStep];
+        const targetEl = document.getElementById(step.target);
+
+        if (!targetEl) {
+            nextTourStep();
+            return;
+        }
+
+        // 설정 화면 내 요소면 스크롤하여 보이게
+        if (step.requireSetup) {
+            targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        // 스크롤 완료 후 위치 계산을 위해 약간의 딜레이
+        setTimeout(() => {
+            positionTourElements(targetEl, step);
+        }, 350);
+    }
+
+    function positionTourElements(targetEl, step) {
+        const rect = targetEl.getBoundingClientRect();
+        const padding = 12;
+
+        // 하이라이트 위치
+        tourHighlight.style.top = (rect.top - padding) + 'px';
+        tourHighlight.style.left = (rect.left - padding) + 'px';
+        tourHighlight.style.width = (rect.width + padding * 2) + 'px';
+        tourHighlight.style.height = (rect.height + padding * 2) + 'px';
+
+        // 툴팁 내용
+        tourStepBadge.textContent = tourCurrentStep + 1;
+        tourTitle.textContent = step.title;
+        tourDescription.textContent = step.description;
+        tourProgress.textContent = `${tourCurrentStep + 1} / ${TOUR_STEPS.length}`;
+
+        const isLast = tourCurrentStep === TOUR_STEPS.length - 1;
+        tourNextBtn.textContent = isLast ? '완료' : '다음';
+        tourSkipBtn.style.display = isLast ? 'none' : 'block';
+
+        // 툴팁 위치 계산
+        const tooltipWidth = 380;
+        let tooltipTop, tooltipLeft;
+
+        if (step.position === 'bottom') {
+            tooltipTop = rect.bottom + padding + 16;
+            tooltipLeft = rect.left + (rect.width / 2) - (tooltipWidth / 2);
+            tourTooltipArrow.style.top = '-8px';
+            tourTooltipArrow.style.bottom = '';
+            tourTooltipArrow.style.left = '50%';
+            tourTooltipArrow.style.transform = 'translateX(-50%) rotate(45deg)';
+        } else {
+            tooltipTop = rect.top - padding - 16;
+            tooltipLeft = rect.left + (rect.width / 2) - (tooltipWidth / 2);
+            tourTooltipArrow.style.bottom = '-8px';
+            tourTooltipArrow.style.top = '';
+            tourTooltipArrow.style.left = '50%';
+            tourTooltipArrow.style.transform = 'translateX(-50%) rotate(45deg)';
+        }
+
+        // 화면 밖으로 나가지 않도록 보정
+        const viewW = window.innerWidth;
+        const viewH = window.innerHeight;
+        if (tooltipLeft < 16) tooltipLeft = 16;
+        if (tooltipLeft + tooltipWidth > viewW - 16) tooltipLeft = viewW - tooltipWidth - 16;
+
+        // top 위치에서 tooltip이 아래로 나올 때 → 실제 렌더 후 높이 확인
+        tourTooltip.style.left = tooltipLeft + 'px';
+        tourTooltip.style.width = tooltipWidth + 'px';
+
+        if (step.position === 'top') {
+            // 위에 표시할 때는 먼저 렌더해서 높이를 알아낸 후 위치 재조정
+            tourTooltip.style.top = '0px';
+            tourTooltip.style.visibility = 'hidden';
+            tourTooltip.style.display = 'block';
+            const tooltipHeight = tourTooltip.offsetHeight;
+            tooltipTop = rect.top - padding - 16 - tooltipHeight;
+            if (tooltipTop < 16) {
+                // 위에 공간 없으면 아래로
+                tooltipTop = rect.bottom + padding + 16;
+                tourTooltipArrow.style.top = '-8px';
+                tourTooltipArrow.style.bottom = '';
+            }
+            tourTooltip.style.visibility = '';
+        }
+
+        tourTooltip.style.top = tooltipTop + 'px';
+    }
+
+    function endTour() {
+        tourActive = false;
+        tourOverlay.classList.add('hidden');
+        tourHighlight.classList.add('hidden');
+        tourTooltip.classList.add('hidden');
+        // 인라인 display 제거 (hidden 클래스가 정상 작동하도록)
+        tourTooltip.style.display = '';
+        focusKucodeInput();
+    }
+
+    // 창 리사이즈 시 위치 재계산
+    window.addEventListener('resize', () => {
+        if (!tourActive) return;
+        const step = TOUR_STEPS[tourCurrentStep];
+        const targetEl = document.getElementById(step.target);
+        if (targetEl) positionTourElements(targetEl, step);
+    });
+
+    // --- 초기화 ---
+
+    document.addEventListener('DOMContentLoaded', () => {
+        displayView.classList.remove('hidden');
+        updateClock();
+        setInterval(updateClock, 1000);
+        
+        populateAddProcessOptions();
+        populateAddFloorOptions();
+        populateProcessOverrideOptions();
+        populateFloorOverrideOptions();
+        populateImageProcessOptions();
+        populateImageFloorOptions();
+
+        // 기기 설정(음성/이미지/연동) 복원
+        loadDeviceSettings();
+        updateImageListDisplay();
+        applyVoiceTimers();
+        initFirebaseSync();
+        showSettingsTab('prep');   // 설정 첫 탭
+
+        startAnnouncementCycle(FIXED_ANNOUNCEMENTS.join('|'));
+        tickerContainer.classList.remove('hidden');
+
+        updateStats();
+        updateScannerStatus();
+        setTimeout(() => {
+            focusKucodeInput();
+            requestWakeLock();
+        }, 200);
+    });
+</script>
+</body>
+</html>
